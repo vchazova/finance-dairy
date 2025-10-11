@@ -9,5 +9,3 @@ Allows adding expenses with amount, currency, category, and card, and provides a
 - [Supabase](https://supabase.com/) for database and authentication
 - [Tailwind CSS](https://tailwindcss.com/) for styling
 - TypeScript
-
-## Project Structure
