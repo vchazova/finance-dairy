@@ -8,4 +8,6 @@ Allows adding expenses with amount, currency, category, and card, and provides a
 - [Next.js 15](https://nextjs.org/) with App Router
 - [Supabase](https://supabase.com/) for database and authentication
 - [Tailwind CSS](https://tailwindcss.com/) for styling
-- TypeScript
+- [TypeScript]() as main language
+- [Zustand]() for UI-Storage
+- [TanStack Query]() for backend-data storage
