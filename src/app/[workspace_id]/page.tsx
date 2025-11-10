@@ -1,21 +1,18 @@
-"use client";
+import { notFound } from "next/navigation";
 
-import React from "react";
-
-export default function WorkSpaceSingle({
+export default async function WorkspaceDetailPage({
   params,
 }: {
-  params: Promise<{ workspace_id: string }>;
+  params: { slug: string };
 }) {
-  const { workspace_id } = React.use(params);
+  // TODO: fetch workspace by slug or id and render transactions
+  // Keeping the stub to validate navigation from the grid.
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        Hi, {workspace_id}
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        Footer
-      </footer>
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <h1 className="text-2xl font-semibold">Детали пространства</h1>
+      <p className="text-[hsl(var(--fg-muted))]">
+        Страница в разработке. Идентификатор: {params.slug}
+      </p>
     </div>
   );
 }

@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import router from "next/navigation";
+import { H1, Text, Input, Button } from "@/components/ui";
 
-// --- Types ---
 type AuthMode = "login" | "signup";
 
 interface AuthResponse {
   error?: { message: string } | null;
 }
 
-// --- Component ---
 export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -20,21 +19,18 @@ export default function AuthPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const { session, login, signUp } = useAuth();
+  const router = useRouter();
 
   async function handleAuth() {
-    // TODO: refactoring
     setLoading(true);
     setMessage(null);
-
     try {
       let response: AuthResponse;
-
       if (mode === "login") {
         response = await login({ email, password });
       } else {
         response = await signUp({ email, password });
       }
-
       if (response.error) throw new Error(response.error.message);
 
       setMessage(
@@ -43,78 +39,82 @@ export default function AuthPage() {
           : "Sign-up successful! Check your email for confirmation."
       );
     } catch (err: any) {
-      setMessage(err.message || "Something went wrong");
+      setMessage(err?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    console.log("Current session:", session);
-    if (session) {
-      router.redirect("/");
-    }
-  }, [session]);
+    if (session) router.replace("/");
+  }, [session, router]);
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 px-4">
-      <div className="w-full max-w-sm bg-white shadow-md rounded-2xl p-6 space-y-5">
-        <h1 className="text-2xl font-semibold text-gray-800 text-center">
-          {mode === "login" ? "Log In" : "Sign Up"}
+    <div className="min-h-screen bg-[hsl(var(--bg))] flex items-center justify-center px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-sm">
+        <header className="text-center space-y-1">
+          <H1 className="!text-2xl">
+            {mode === "login" ? "Log In" : "Sign Up"}
+          </H1>
           {session && (
-            <span className="block text-sm text-green-600 mt-2">
+            <Text className="text-[hsl(var(--color-success))] text-sm">
               You are logged in!
-            </span>
+            </Text>
           )}
-        </h1>
+        </header>
 
-        <div className="space-y-3">
-          <input
+        <div className="mt-5 space-y-4">
+          <Input
+            label="Email"
             type="email"
-            placeholder="Email"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            placeholder="user@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
           />
-
-          <input
+          <Input
+            label="Password"
             type="password"
-            placeholder="Password"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
           />
+          <Button
+            variant="primary"
+            block
+            onClick={handleAuth}
+            disabled={loading || !email || !password}
+          >
+            {loading
+              ? "Processing..."
+              : mode === "login"
+              ? "Log In"
+              : "Sign Up"}
+          </Button>
+
+          {message && (
+            <Text className="text-center text-sm text-[hsl(var(--fg-muted))]">
+              {message}
+            </Text>
+          )}
         </div>
 
-        <button
-          onClick={handleAuth}
-          disabled={loading}
-          className={`w-full py-2 text-white rounded-lg transition ${
-            loading
-              ? "bg-indigo-400 cursor-not-allowed"
-              : "bg-indigo-600 hover:bg-indigo-700"
-          }`}
-        >
-          {loading ? "Processing..." : mode === "login" ? "Log In" : "Sign Up"}
-        </button>
-
-        {message && (
-          <p className="text-sm text-center text-gray-600">{message}</p>
-        )}
-
-        <div className="border-t border-gray-200 pt-4 text-center">
-          <p className="text-gray-500 text-sm">
+        <div className="mt-6 border-t border-[hsl(var(--border))] pt-4 text-center">
+          <Text className="text-sm text-[hsl(var(--fg-muted))]">
             {mode === "login"
               ? "Don't have an account?"
               : "Already have an account?"}
-          </p>
-          <button
-            type="button"
+          </Text>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 underline"
             onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="mt-2 text-indigo-600 hover:underline text-sm font-medium"
+            disabled={loading}
           >
             {mode === "login" ? "Sign Up" : "Log In"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
