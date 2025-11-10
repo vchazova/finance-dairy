@@ -16,10 +16,10 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const base = cn(
-    "inline-flex items-center justify-center whitespace-nowrap select-none",
+    "inline-flex items-center justify-center whitespace-nowrap select-none cursor-pointer",
     tokens.radius,
     tokens.shadow,
-    tokens.focus,
+    tokens.focusButton,
     tokens.disabled
   );
 

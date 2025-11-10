@@ -1,8 +1,11 @@
 export const tokens = {
   radius: "rounded-2xl",
-  focus:
-    "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[hsl(var(--color-primary))]/70",
-  disabled: "disabled:opacity-50 disabled:pointer-events-none",
+  focusButton:
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[hsl(var(--color-primary))]/60",
+  focusInput:
+    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-[hsl(var(--color-primary))]/40 focus-visible:border-[hsl(var(--color-primary))]",
+  disabled:
+    "disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed",
   shadow: "shadow-sm",
 
   color: {

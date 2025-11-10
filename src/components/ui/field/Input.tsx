@@ -13,7 +13,7 @@ const fieldBase = cn(
   "border-[hsl(var(--border))]",
   "text-[hsl(var(--fg))] placeholder:text-[hsl(var(--fg-muted))]",
   "px-3 py-2",
-  tokens.focus,
+  tokens.focusInput,
   tokens.disabled
 );
 
