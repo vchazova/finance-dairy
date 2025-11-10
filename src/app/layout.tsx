@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
 import "@/styles/globals.css";
 import AuthProvider from "@/providers/AuthProvider";
 
@@ -14,10 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${GeistSans.className} antialiased dark:bg-gray-950`}
-    >
+    <html lang="en">
       <body>
         <AuthProvider>{children}</AuthProvider>
       </body>
