@@ -4,9 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef } from "react";
-import { createWorkspace } from "@/app/actions/workspaces";
 import { createPortal } from "react-dom";
-import { ok } from "assert";
 
 const schema = z.object({
   name: z
@@ -101,7 +99,6 @@ export default function CreateWorkspaceDialog({
 
   async function onSubmit(values: FormValues) {
     startTransition(async () => {
-      //   const res = await createWorkspace(values);
       const res = { ok: true, id: "new-workspace-id", message: "ok" }; // TODO: replace with real call
       console.log(values);
       if (res?.ok && res.id) {
