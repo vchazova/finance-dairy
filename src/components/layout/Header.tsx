@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CreateWorkspaceButton from "@/components/workspaces/CreateWorkspaceButton";
 import AvatarMenu from "@/components/shared/AvatarMenu";
 
 export default function Header({ user }: { user: any }) {
@@ -9,12 +10,7 @@ export default function Header({ user }: { user: any }) {
           Family Finance
         </Link>
         <nav className="flex items-center gap-2">
-          <Link
-            href="/workspaces/create"
-            className="inline-flex h-9 items-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]"
-          >
-            Новое пространство
-          </Link>
+          <CreateWorkspaceButton />
           <AvatarMenu user={user} />
         </nav>
       </div>
