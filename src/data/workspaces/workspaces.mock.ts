@@ -22,7 +22,6 @@ export const workspacesRepo: WorkspacesRepo = {
         return {
           id: String(ws.id),
           name: ws.name,
-          slug: null,
           role: m.role,
         } as WorkspaceListItem;
       })

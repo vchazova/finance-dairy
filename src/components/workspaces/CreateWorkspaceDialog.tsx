@@ -3,8 +3,9 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useAuth } from "@/providers/AuthProvider";
 
 const schema = z.object({
   name: z
@@ -26,6 +27,7 @@ export default function CreateWorkspaceDialog({
   isPending: boolean;
   startTransition: React.TransitionStartFunction;
 }) {
+  const { session } = useAuth();
   const {
     register,
     handleSubmit,
@@ -34,6 +36,7 @@ export default function CreateWorkspaceDialog({
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   // Portal mount node
   const mountNode = useMemo(() => {
@@ -99,13 +102,36 @@ export default function CreateWorkspaceDialog({
 
   async function onSubmit(values: FormValues) {
     startTransition(async () => {
-      const res = { ok: true, id: "new-workspace-id", message: "ok" }; // TODO: replace with real call
-      console.log(values);
-      if (res?.ok && res.id) {
-        onOpenChange(false);
-        // TODO: navigate to the new workspace
-      } else if (res?.message) {
-        // TODO: show error toast
+      setServerError(null);
+      try {
+        const res = await fetch("/api/workspaces", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {}),
+          },
+          body: JSON.stringify({ name: values.name }),
+        });
+        const data = (await res.json().catch(() => null)) as
+          | { ok: true; id: string }
+          | { ok: false; message?: string }
+          | null;
+        if (!res.ok) {
+          setServerError((data as any)?.message || `Request failed (${res.status})`);
+          return;
+        }
+        if (data && "ok" in data && data.ok && (data as any).id) {
+          onOpenChange(false);
+        } else {
+          setServerError((data as any)?.message || "Не удалось создать пространство");
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Unexpected error";
+        setServerError(msg);
       }
     });
   }
@@ -147,6 +173,9 @@ export default function CreateWorkspaceDialog({
             />
             {errors.name && (
               <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+            )}
+            {serverError && !errors.name && (
+              <p className="mt-1 text-sm text-red-600">{serverError}</p>
             )}
           </div>
 

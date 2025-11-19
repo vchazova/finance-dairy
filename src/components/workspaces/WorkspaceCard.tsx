@@ -6,9 +6,7 @@ export default function WorkspaceCard({
 }: {
   workspace: WorkspaceListItem;
 }) {
-  const href = workspace.slug
-    ? `/workspaces/${workspace.slug}`
-    : `/workspaces/${workspace.id}`;
+  const href = `/${workspace.id}`;
   return (
     <Link
       href={href}
