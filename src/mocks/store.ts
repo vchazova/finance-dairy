@@ -4,6 +4,7 @@ import {
   CURRENCIES as SEED_CURRENCIES,
   PAYMENT_TYPES as SEED_PAYMENT_TYPES,
   CATEGORIES as SEED_CATEGORIES,
+  TRANSACTIONS as SEED_TRANSACTIONS,
 } from "@/mocks/seed";
 
 type WorkspaceRow = {
@@ -47,11 +48,31 @@ type PaymentTypeRow = {
   workspace_id: number;
 };
 
+type TransactionRow = {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  workspace_id: number;
+  user_id: string;
+  payment_type_id: number;
+  category_id: number;
+  currency_id: number;
+  amount: string;
+  date: string;
+  comment: string | null;
+  is_decrease: boolean;
+};
+
 const workspaces: WorkspaceRow[] = [...SEED_WORKSPACES];
 const members: WorkspaceMemberRow[] = [...SEED_MEMBERS];
 const currencies: CurrencyRow[] = [...SEED_CURRENCIES] as any;
 const paymentTypes: PaymentTypeRow[] = [...SEED_PAYMENT_TYPES] as any;
 const categories: CategoryRow[] = [...SEED_CATEGORIES] as any;
+const transactions: TransactionRow[] = SEED_TRANSACTIONS.map((t) => ({
+  ...t,
+  amount: String(t.amount),
+  date: new Date(t.date).toISOString(),
+})) as any;
 
 function nowIso() {
   return new Date().toISOString();
@@ -77,6 +98,9 @@ export const store = {
   },
   getCategories() {
     return [...categories];
+  },
+  getTransactions() {
+    return [...transactions];
   },
 
   // Writers
@@ -202,6 +226,82 @@ export const store = {
     paymentTypes.splice(idx, 1);
     return true;
   },
+
+  // Transactions CRUD
+  addTransaction(input: {
+    workspace_id: number;
+    user_id: string;
+    payment_type_id: number;
+    category_id: number;
+    currency_id: number;
+    amount: string;
+    date: string | Date;
+    comment?: string | null;
+    is_decrease?: boolean;
+  }): TransactionRow {
+    const row: TransactionRow = {
+      id: nextId(transactions),
+      created_at: nowIso(),
+      updated_at: nowIso(),
+      workspace_id: input.workspace_id,
+      user_id: input.user_id,
+      payment_type_id: input.payment_type_id,
+      category_id: input.category_id,
+      currency_id: input.currency_id,
+      amount: String(input.amount),
+      date:
+        input.date instanceof Date
+          ? input.date.toISOString()
+          : new Date(input.date).toISOString(),
+      comment: input.comment ?? null,
+      is_decrease: input.is_decrease ?? true,
+    };
+    transactions.push(row);
+    return row;
+  },
+  updateTransaction(
+    id: number,
+    patch: Partial<
+      Pick<
+        TransactionRow,
+        | "payment_type_id"
+        | "category_id"
+        | "currency_id"
+        | "amount"
+        | "date"
+        | "comment"
+        | "is_decrease"
+      >
+    >
+  ): TransactionRow | null {
+    const idx = transactions.findIndex((t) => t.id === id);
+    if (idx === -1) return null;
+    const current = transactions[idx];
+    transactions[idx] = {
+      ...current,
+      ...patch,
+      amount: patch.amount !== undefined ? String(patch.amount) : current.amount,
+      date:
+        patch.date !== undefined
+          ? new Date(patch.date as any).toISOString()
+          : current.date,
+      updated_at: nowIso(),
+    };
+    return transactions[idx];
+  },
+  removeTransaction(id: number): boolean {
+    const idx = transactions.findIndex((t) => t.id === id);
+    if (idx === -1) return false;
+    transactions.splice(idx, 1);
+    return true;
+  },
 };
 
-export type { WorkspaceRow, WorkspaceMemberRow, CurrencyRow, CategoryRow, PaymentTypeRow };
+export type {
+  WorkspaceRow,
+  WorkspaceMemberRow,
+  CurrencyRow,
+  CategoryRow,
+  PaymentTypeRow,
+  TransactionRow,
+};
