@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -19,29 +19,59 @@ export default function WorkspacePage({
 }) {
   const { session } = useAuth();
   const [open, setOpen] = useState(false);
-  const [tx, setTx] = useState<Tx[]>([
-    {
-      id: "t1",
-      date: "2025-11-01",
-      category: "Groceries",
-      amount: -185.4,
-      comment: "Weekly groceries",
-    },
-    {
-      id: "t2",
-      date: "2025-11-05",
-      category: "Income",
-      amount: 1200,
-      comment: "Freelance payout",
-    },
-    {
-      id: "t3",
-      date: "2025-11-10",
-      category: "Rent",
-      amount: -4200,
-      comment: "November rent",
-    },
-  ]);
+  const [tx, setTx] = useState<Tx[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!session?.user?.id) {
+        setTx([]);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/transactions?workspaceId=${params.workspace_id}`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+        });
+        if (!res.ok) {
+          const msg = (await res.text().catch(() => "")) || `Request failed (${res.status})`;
+          throw new Error(msg);
+        }
+        const list = (await res.json()) as any[];
+        if (cancelled) return;
+        const mapped: Tx[] = list.map((t) => {
+          const amt = parseFloat(t.amount);
+          const signed = t.is_decrease ? -Math.abs(amt) : Math.abs(amt);
+          return {
+            id: String(t.id),
+            date: new Date(t.date).toISOString().slice(0, 10),
+            category: String(t.category_id),
+            amount: signed,
+            comment: t.comment ?? null,
+          };
+        });
+        setTx(mapped);
+      } catch (e: any) {
+        if (cancelled) return;
+        setError(e?.message || "Failed to load transactions");
+        setTx([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [params.workspace_id, session?.access_token, session?.user?.id]);
 
   return (
     <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
@@ -80,28 +110,44 @@ export default function WorkspacePage({
               </tr>
             </thead>
             <tbody>
-              {tx.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-t border-[hsl(var(--border))]"
-                >
-                  <td className="px-4 py-2 whitespace-nowrap">{row.date}</td>
-                  <td className="px-4 py-2">{row.category}</td>
-                  <td className="px-4 py-2 tabular-nums">
-                    <span
-                      className={
-                        row.amount < 0 ? "text-red-600" : "text-green-600"
-                      }
-                    >
-                      {row.amount < 0 ? "-" : "+"}
-                      {Math.abs(row.amount).toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-[hsl(var(--fg-muted))]">
-                    {row.comment || "—"}
+              {loading && (
+                <tr className="border-t border-[hsl(var(--border))]">
+                  <td className="px-4 py-3" colSpan={4}>
+                    Loading transactions…
                   </td>
                 </tr>
-              ))}
+              )}
+              {!loading && error && (
+                <tr className="border-t border-[hsl(var(--border))]">
+                  <td className="px-4 py-3 text-red-600" colSpan={4}>
+                    {error}
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                !error &&
+                tx.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-t border-[hsl(var(--border))]"
+                  >
+                    <td className="px-4 py-2 whitespace-nowrap">{row.date}</td>
+                    <td className="px-4 py-2">{row.category}</td>
+                    <td className="px-4 py-2 tabular-nums">
+                      <span
+                        className={
+                          row.amount < 0 ? "text-red-600" : "text-green-600"
+                        }
+                      >
+                        {row.amount < 0 ? "-" : "+"}
+                        {Math.abs(row.amount).toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-[hsl(var(--fg-muted))]">
+                      {row.comment || "—"}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
