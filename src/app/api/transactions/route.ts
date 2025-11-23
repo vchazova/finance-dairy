@@ -112,7 +112,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const json = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const json = { ...body, user_id: user.id };
     const parsed = transactionInsertSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json(

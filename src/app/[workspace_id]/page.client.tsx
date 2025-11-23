@@ -7,24 +7,97 @@ import { useAuth } from "@/providers/AuthProvider";
 type Tx = {
   id: string;
   date: string; // ISO or human
-  category: string;
+  categoryId: string;
+  categoryName?: string;
+  paymentTypeId?: string;
+  currencyId?: string;
+  isDecrease?: boolean;
   amount: number;
   comment?: string | null;
 };
 
+type Option = { id: string; label: string };
+
 export default function WorkspaceClientPage({
   workspaceId,
+  initialCategories = [],
+  initialPaymentTypes = [],
+  initialCurrencies = [],
 }: {
   workspaceId: string;
+  initialCategories?: Option[];
+  initialPaymentTypes?: Option[];
+  initialCurrencies?: Option[];
 }) {
   const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const [tx, setTx] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Option[]>(initialCategories);
+  const [paymentTypes, setPaymentTypes] = useState<Option[]>(initialPaymentTypes);
+  const [currencies, setCurrencies] = useState<Option[]>(initialCurrencies);
 
   useEffect(() => {
     let cancelled = false;
+    async function loadDictionaries() {
+      if (!session?.user?.id) {
+        setCategories([]);
+        setPaymentTypes([]);
+        setCurrencies([]);
+        return;
+      }
+      try {
+        const [cats, ptypes, currs] = await Promise.all([
+          fetch(`/api/dictionaries/categories?workspaceId=${workspaceId}`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              Accept: "application/json",
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+          }),
+          fetch(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              Accept: "application/json",
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+          }),
+          fetch(`/api/dictionaries/currencies`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              Accept: "application/json",
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+          }),
+        ]);
+
+        const [catsJson, ptypesJson, currsJson] = await Promise.all([
+          cats.ok ? cats.json() : Promise.resolve([]),
+          ptypes.ok ? ptypes.json() : Promise.resolve([]),
+          currs.ok ? currs.json() : Promise.resolve([]),
+        ]);
+
+        if (cancelled) return;
+        setCategories((catsJson as any[]).map((c) => ({ id: String(c.id), label: c.name as string })));
+        setPaymentTypes((ptypesJson as any[]).map((p) => ({ id: String(p.id), label: p.name as string })));
+        setCurrencies(
+          (currsJson as any[]).map((c) => ({
+            id: String(c.id),
+            label: `${c.code} (${c.symbol ?? ""})`.trim(),
+          }))
+        );
+      } catch {
+        if (cancelled) return;
+        setCategories([]);
+        setPaymentTypes([]);
+        setCurrencies([]);
+      }
+    }
+
     async function load() {
       if (!session?.user?.id) {
         setTx([]);
@@ -53,7 +126,10 @@ export default function WorkspaceClientPage({
           return {
             id: String(t.id),
             date: new Date(t.date).toISOString().slice(0, 10),
-            category: String(t.category_id),
+            categoryId: String(t.category_id),
+            paymentTypeId: String(t.payment_type_id),
+            currencyId: String(t.currency_id),
+            isDecrease: t.is_decrease,
             amount: signed,
             comment: t.comment ?? null,
           };
@@ -67,11 +143,14 @@ export default function WorkspaceClientPage({
         if (!cancelled) setLoading(false);
       }
     }
+    loadDictionaries();
     load();
     return () => {
       cancelled = true;
     };
   }, [workspaceId, session?.access_token, session?.user?.id]);
+
+  const categoryLabels = new Map(categories.map((c) => [c.id, c.label]));
 
   return (
     <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
@@ -105,6 +184,8 @@ export default function WorkspaceClientPage({
               <tr>
                 <th className="px-4 py-2">Date</th>
                 <th className="px-4 py-2">Category</th>
+                <th className="px-4 py-2">Payment</th>
+                <th className="px-4 py-2">Currency</th>
                 <th className="px-4 py-2">Amount</th>
                 <th className="px-4 py-2">Comment</th>
               </tr>
@@ -132,7 +213,15 @@ export default function WorkspaceClientPage({
                     className="border-t border-[hsl(var(--border))]"
                   >
                     <td className="px-4 py-2 whitespace-nowrap">{row.date}</td>
-                    <td className="px-4 py-2">{row.category}</td>
+                    <td className="px-4 py-2">
+                      {row.categoryName || categoryLabels.get(row.categoryId) || row.categoryId}
+                    </td>
+                    <td className="px-4 py-2">
+                      {paymentTypes.find((p) => p.id === row.paymentTypeId)?.label || row.paymentTypeId || "—"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {currencies.find((c) => c.id === row.currencyId)?.label || row.currencyId || "—"}
+                    </td>
                     <td className="px-4 py-2 tabular-nums">
                       <span
                         className={
@@ -155,6 +244,11 @@ export default function WorkspaceClientPage({
         {open && (
           <CreateTransactionDialog
             onClose={() => setOpen(false)}
+            categories={categories}
+            paymentTypes={paymentTypes}
+            currencies={currencies}
+            workspaceId={workspaceId}
+            accessToken={session?.access_token ?? null}
             onAdd={(item) => setTx((p) => [item, ...p])}
           />
         )}
@@ -166,17 +260,38 @@ export default function WorkspaceClientPage({
 function CreateTransactionDialog({
   onClose,
   onAdd,
+  categories,
+  paymentTypes,
+  currencies,
+  workspaceId,
+  accessToken,
 }: {
   onClose: () => void;
   onAdd: (tx: Tx) => void;
+  categories: Option[];
+  paymentTypes: Option[];
+  currencies: Option[];
+  workspaceId: string;
+  accessToken: string | null;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [date, setDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
-  const [category, setCategory] = useState("General");
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [paymentTypeId, setPaymentTypeId] = useState<string>("");
+  const [currencyId, setCurrencyId] = useState<string>("");
+  const [isDecrease, setIsDecrease] = useState(true);
   const [amount, setAmount] = useState<string>("");
   const [comment, setComment] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!categoryId && categories.length) setCategoryId(categories[0].id);
+    if (!paymentTypeId && paymentTypes.length) setPaymentTypeId(paymentTypes[0].id);
+    if (!currencyId && currencies.length) setCurrencyId(currencies[0].id);
+  }, [categories, paymentTypes, currencies, categoryId, paymentTypeId, currencyId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -187,17 +302,57 @@ function CreateTransactionDialog({
   }, [onClose]);
 
   function submit() {
+    if (submitting) return;
     const value = parseFloat(amount);
-    if (Number.isNaN(value)) return;
-    const item: Tx = {
-      id: Math.random().toString(36).slice(2),
-      date,
-      category,
-      amount: value,
-      comment: comment || null,
-    };
-    onAdd(item);
-    onClose();
+    if (Number.isNaN(value) || !categoryId || !paymentTypeId || !currencyId) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    (async () => {
+      try {
+        const payload = {
+          workspace_id: Number(workspaceId),
+          payment_type_id: Number(paymentTypeId),
+          category_id: Number(categoryId),
+          currency_id: Number(currencyId),
+          amount: String(Math.abs(value)),
+          date,
+          comment: comment || null,
+          is_decrease: isDecrease,
+        };
+        const res = await fetch("/api/transactions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+        const json = (await res.json().catch(() => ({}))) as any;
+        if (!res.ok || !json?.ok) {
+          throw new Error(json?.message || `Failed (${res.status})`);
+        }
+
+        const item: Tx = {
+          id: String(json.id ?? Math.random().toString(36).slice(2)),
+          date,
+          categoryId,
+          categoryName: categories.find((c) => c.id === categoryId)?.label,
+          paymentTypeId,
+          currencyId,
+          isDecrease,
+          amount: isDecrease ? -Math.abs(value) : Math.abs(value),
+          comment: comment || null,
+        };
+        onAdd(item);
+        onClose();
+      } catch (err: any) {
+        setSubmitError(err?.message || "Failed to create transaction");
+      } finally {
+        setSubmitting(false);
+      }
+    })();
   }
 
   return (
@@ -218,6 +373,11 @@ function CreateTransactionDialog({
           </button>
         </div>
         <div className="space-y-3">
+          {submitError && (
+            <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm">Date</label>
             <input
@@ -227,14 +387,72 @@ function CreateTransactionDialog({
               className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm">Category</label>
-            <input
-              type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm">Category</label>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm">Payment Type</label>
+              <select
+                value={paymentTypeId}
+                onChange={(e) => setPaymentTypeId(e.target.value)}
+                className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+              >
+                {paymentTypes.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm">Currency</label>
+              <select
+                value={currencyId}
+                onChange={(e) => setCurrencyId(e.target.value)}
+                className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+              >
+                {currencies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm">Type</label>
+              <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] px-3 py-2">
+                <label className="inline-flex items-center gap-1 text-sm">
+                  <input
+                    type="radio"
+                    checked={isDecrease}
+                    onChange={() => setIsDecrease(true)}
+                  />
+                  Expense
+                </label>
+                <label className="inline-flex items-center gap-1 text-sm">
+                  <input
+                    type="radio"
+                    checked={!isDecrease}
+                    onChange={() => setIsDecrease(false)}
+                  />
+                  Income
+                </label>
+              </div>
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-sm">Amount</label>
@@ -268,9 +486,10 @@ function CreateTransactionDialog({
             <button
               type="button"
               onClick={submit}
-              className="h-9 rounded-xl bg-[hsl(var(--color-primary))] px-3 text-sm text-white"
+              disabled={submitting}
+              className="h-9 rounded-xl bg-[hsl(var(--color-primary))] px-3 text-sm text-white disabled:opacity-60"
             >
-              Save
+              {submitting ? "Saving..." : "Save"}
             </button>
           </div>
         </div>
