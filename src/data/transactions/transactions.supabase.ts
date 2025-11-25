@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabase as defaultClient } from "@/lib/supabase/client";
 import type { TransactionsRepo } from "@/data/transactions/transactions.repo";
 import type {
   Transaction,
@@ -6,65 +8,80 @@ import type {
 } from "@/entities/transactions";
 import { transactionRowSchema } from "@/entities/transactions";
 
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-const api = (path: string) => (APP_URL ? `${APP_URL}${path}` : path);
-
 function parseRow(row: any): Transaction {
   return transactionRowSchema.parse({ ...row, amount: String(row.amount) });
 }
 
-export const transactionsRepo: TransactionsRepo = {
-  async list(workspaceId: number | string): Promise<Transaction[]> {
-    const res = await fetch(api(`/api/transactions?workspaceId=${workspaceId}`), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return [];
-    const json = (await res.json()) as any[];
-    return json.map((row) => parseRow(row));
-  },
+function getClient(client?: SupabaseClient) {
+  return client ?? defaultClient;
+}
 
-  async get(id: number | string): Promise<Transaction | null> {
-    const res = await fetch(api(`/api/transactions/${id}`), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return null;
-    const json = await res.json();
-    return parseRow(json);
-  },
+export function createTransactionsSupabaseRepo(client?: SupabaseClient): TransactionsRepo {
+  const supabase = getClient(client);
 
-  async create(input: TransactionInsert) {
-    const res = await fetch(api(`/api/transactions`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
+  return {
+    // List all transactions for workspace (ordered by date desc).
+    async list(workspaceId: number | string): Promise<Transaction[]> {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("date", { ascending: false });
 
-  async update(id: number | string, input: TransactionUpdate) {
-    const res = await fetch(api(`/api/transactions/${id}`), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
+      if (error) {
+        console.warn("[transactionsRepo] list failed", error);
+        return [];
+      }
+      return (data ?? []).map((row) => parseRow(row));
+    },
 
-  async remove(id: number | string) {
-    const res = await fetch(api(`/api/transactions/${id}`), {
-      method: "DELETE",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-};
+    // Get single transaction by id.
+    async get(id: number | string): Promise<Transaction | null> {
+      const { data, error } = await supabase.from("transactions").select("*").eq("id", id).single();
+      if (error && error.code !== "PGRST116") {
+        console.warn("[transactionsRepo] get failed", error);
+        return null;
+      }
+      if (!data) return null;
+      return parseRow(data);
+    },
+
+    // Create transaction record; normalizes amount/date to DB types.
+    async create(input: TransactionInsert) {
+      const payload = {
+        ...input,
+        amount: String(input.amount),
+        date: new Date(input.date as any).toISOString(),
+      };
+      const { data, error } = await supabase
+        .from("transactions")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error || !data) return { ok: false, message: error?.message ?? "Failed to create" } as const;
+      return { ok: true, id: Number(data.id) } as const;
+    },
+
+    // Partial update of transaction by id.
+    async update(id: number | string, input: TransactionUpdate) {
+      const patch: Record<string, any> = { ...input, updated_at: new Date().toISOString() };
+      if (patch.amount !== undefined) patch.amount = String(patch.amount);
+      if (patch.date !== undefined) patch.date = new Date(patch.date as any).toISOString();
+
+      const { error } = await supabase.from("transactions").update(patch).eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+
+    // Delete transaction by id.
+    async remove(id: number | string) {
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+  };
+}
+
+// Default instance for environments where a global Supabase client is available.
+export const transactionsRepo = createTransactionsSupabaseRepo();

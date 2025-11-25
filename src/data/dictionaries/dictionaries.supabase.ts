@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabase as defaultClient } from "@/lib/supabase/client";
 import type { DictionariesRepo, CategoryLite, PaymentTypeLite } from "@/data/dictionaries/dictionaries.repo";
 import type {
   Currency,
@@ -16,156 +18,135 @@ import {
   paymentTypeRowSchema,
 } from "@/entities/dictionaries";
 
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-const api = (p: string) => (APP_URL ? `${APP_URL}${p}` : p);
+function getClient(client?: SupabaseClient) {
+  return client ?? defaultClient;
+}
 
-export const dictionariesRepo: DictionariesRepo = {
-  async listCurrencies(): Promise<Currency[]> {
-    // Placeholder: implement API route later. For now, fallback to empty.
-    const res = await fetch(api("/api/dictionaries/currencies"), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return [];
-    const json = (await res.json()) as any[];
-    return json.map((row) => currencyRowSchema.parse(row));
-  },
-  async getCurrency(id) {
-    const res = await fetch(api(`/api/dictionaries/currencies/${id}`), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return null as any;
-    const json = await res.json();
-    return currencyRowSchema.parse(json);
-  },
-  async createCurrency(input: CurrencyInsert) {
-    const res = await fetch(api(`/api/dictionaries/currencies`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-  async updateCurrency(id, input: CurrencyUpdate) {
-    const res = await fetch(api(`/api/dictionaries/currencies/${id}`), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-  async removeCurrency(id) {
-    const res = await fetch(api(`/api/dictionaries/currencies/${id}`), {
-      method: "DELETE",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
+export function createDictionariesSupabaseRepo(client?: SupabaseClient): DictionariesRepo {
+  const supabase = getClient(client);
 
-  async listCategories(workspaceId: number | string): Promise<CategoryLite[]> {
-    const res = await fetch(api(`/api/dictionaries/categories?workspaceId=${workspaceId}`), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return [];
-    return (await res.json()) as CategoryLite[];
-  },
-  async getCategory(id) {
-    const res = await fetch(api(`/api/dictionaries/categories/${id}`), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return null as any;
-    const json = await res.json();
-    return categoryRowSchema.parse(json);
-  },
-  async createCategory(input: CategoryInsert) {
-    const res = await fetch(api(`/api/dictionaries/categories`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-  async updateCategory(id, input: CategoryUpdate) {
-    const res = await fetch(api(`/api/dictionaries/categories/${id}`), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-  async removeCategory(id) {
-    const res = await fetch(api(`/api/dictionaries/categories/${id}`), {
-      method: "DELETE",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
+  return {
+    // Global (unscoped) dictionaries: currencies
+    async listCurrencies(): Promise<Currency[]> {
+      const { data, error } = await supabase.from("currencies").select("*").order("code", { ascending: true });
+      if (error) {
+        console.warn("[dictionariesRepo] listCurrencies failed", error);
+        return [];
+      }
+      return (data ?? []).map((row) => currencyRowSchema.parse(row));
+    },
+    async getCurrency(id) {
+      const { data, error } = await supabase.from("currencies").select("*").eq("id", id).single();
+      if (error && error.code !== "PGRST116") {
+        console.warn("[dictionariesRepo] getCurrency failed", error);
+        return null;
+      }
+      if (!data) return null as any;
+      return currencyRowSchema.parse(data);
+    },
+    async createCurrency(input: CurrencyInsert) {
+      const { data, error } = await supabase.from("currencies").insert(input).select("id").single();
+      if (error || !data) return { ok: false, message: error?.message ?? "Failed to create" } as const;
+      return { ok: true, id: Number(data.id) } as const;
+    },
+    async updateCurrency(id, input: CurrencyUpdate) {
+      const { error } = await supabase.from("currencies").update(input).eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+    async removeCurrency(id) {
+      const { error } = await supabase.from("currencies").delete().eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
 
-  async listPaymentTypes(workspaceId: number | string): Promise<PaymentTypeLite[]> {
-    const res = await fetch(api(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return [];
-    return (await res.json()) as PaymentTypeLite[];
-  },
-  async getPaymentType(id) {
-    const res = await fetch(api(`/api/dictionaries/payment_types/${id}`), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res || !res.ok) return null as any;
-    const json = await res.json();
-    return paymentTypeRowSchema.parse(json);
-  },
-  async createPaymentType(input: PaymentTypeInsert) {
-    const res = await fetch(api(`/api/dictionaries/payment_types`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-  async updatePaymentType(id, input: PaymentTypeUpdate) {
-    const res = await fetch(api(`/api/dictionaries/payment_types/${id}`), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "include",
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-  async removePaymentType(id) {
-    const res = await fetch(api(`/api/dictionaries/payment_types/${id}`), {
-      method: "DELETE",
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    }).catch(() => null);
-    if (!res) return { ok: false, message: "Network error" } as const;
-    return (await res.json()) as any;
-  },
-};
+    // Workspace-scoped dictionaries: categories
+    async listCategories(workspaceId: number | string): Promise<CategoryLite[]> {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("name", { ascending: true });
+      if (error) {
+        console.warn("[dictionariesRepo] listCategories failed", error);
+        return [];
+      }
+      return (data ?? []).map((r: any) => categoryRowSchema.parse(r));
+    },
+    async getCategory(id) {
+      const { data, error } = await supabase.from("categories").select("*").eq("id", id).single();
+      if (error && error.code !== "PGRST116") {
+        console.warn("[dictionariesRepo] getCategory failed", error);
+        return null;
+      }
+      if (!data) return null as any;
+      return categoryRowSchema.parse(data);
+    },
+    async createCategory(input: CategoryInsert) {
+      const payload = {
+        ...input,
+        icon: (input as any).icon ?? null,
+        color: (input as any).color ?? null,
+      };
+      const { data, error } = await supabase.from("categories").insert(payload).select("id").single();
+      if (error || !data) return { ok: false, message: error?.message ?? "Failed to create" } as const;
+      return { ok: true, id: Number(data.id) } as const;
+    },
+    async updateCategory(id, input: CategoryUpdate) {
+      const { error } = await supabase.from("categories").update(input).eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+    async removeCategory(id) {
+      const { error } = await supabase.from("categories").delete().eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+
+    // Workspace-scoped dictionaries: payment types
+    async listPaymentTypes(workspaceId: number | string): Promise<PaymentTypeLite[]> {
+      const { data, error } = await supabase
+        .from("payment_types")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("name", { ascending: true });
+      if (error) {
+        console.warn("[dictionariesRepo] listPaymentTypes failed", error);
+        return [];
+      }
+      return (data ?? []).map((r: any) => paymentTypeRowSchema.parse(r));
+    },
+    async getPaymentType(id) {
+      const { data, error } = await supabase.from("payment_types").select("*").eq("id", id).single();
+      if (error && error.code !== "PGRST116") {
+        console.warn("[dictionariesRepo] getPaymentType failed", error);
+        return null;
+      }
+      if (!data) return null as any;
+      return paymentTypeRowSchema.parse(data);
+    },
+    async createPaymentType(input: PaymentTypeInsert) {
+      const payload = {
+        ...input,
+        icon: (input as any).icon ?? null,
+        default_currency_id: (input as any).default_currency_id ?? null,
+      };
+      const { data, error } = await supabase.from("payment_types").insert(payload).select("id").single();
+      if (error || !data) return { ok: false, message: error?.message ?? "Failed to create" } as const;
+      return { ok: true, id: Number(data.id) } as const;
+    },
+    async updatePaymentType(id, input: PaymentTypeUpdate) {
+      const { error } = await supabase.from("payment_types").update(input).eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+    async removePaymentType(id) {
+      const { error } = await supabase.from("payment_types").delete().eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+  };
+}
+
+// Default instance for environments where a global Supabase client is available.
+export const dictionariesRepo = createDictionariesSupabaseRepo();

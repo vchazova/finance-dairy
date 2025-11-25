@@ -1,58 +1,16 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { categoryRowSchema, categoryUpdateSchema } from "@/entities/dictionaries";
+import { categoryUpdateSchema } from "@/entities/dictionaries";
+import { assertWorkspaceMembership, createRouteSupabase } from "@/lib/supabase/api";
+import { createDataRepos } from "@/data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function createSupabase(req: Request): Promise<SupabaseClient> {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-      global: {
-        headers: {
-          Authorization: req.headers.get("authorization") || "",
-        },
-      },
-    }
-  );
-}
-
-async function fetchCategory(supabase: SupabaseClient, id: number) {
-  const { data, error } = await supabase.from("categories").select("*").eq("id", id).single();
-  if (error && error.code !== "PGRST116") throw error;
-  return data ?? null;
-}
-
-async function assertMembership(
-  supabase: SupabaseClient,
-  workspaceId: number | string,
-  userId: string
-) {
-  const workspaceIdNum = typeof workspaceId === "string" ? Number(workspaceId) : workspaceId;
-  if (Number.isNaN(workspaceIdNum)) throw new Error("Invalid workspace");
-  const { data, error } = await supabase
-    .from("workspace_members")
-    .select("id")
-    .eq("workspace_id", workspaceIdNum)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) throw new Error("Forbidden");
-}
-
+// GET /api/dictionaries/categories/[id] - fetch category by id with membership check.
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const supabase = await createSupabase(req);
+    const supabase = await createRouteSupabase(req);
+    const { dictionariesRepo: repo } = createDataRepos(supabase);
     const {
       data: { user },
       error: userErr,
@@ -64,12 +22,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const idNum = Number(params.id);
     if (Number.isNaN(idNum)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
-    const row = await fetchCategory(supabase, idNum);
+    const row = await repo.getCategory(idNum);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    await assertMembership(supabase, row.workspace_id, user.id);
-    const parsed = categoryRowSchema.parse(row);
-    return NextResponse.json(parsed, { status: 200 });
+    await assertWorkspaceMembership(supabase, row.workspace_id, user.id);
+    return NextResponse.json(row, { status: 200 });
   } catch (e: any) {
     const msg = e?.message || "Failed to load";
     const status = msg === "Forbidden" ? 403 : msg === "Invalid workspace" ? 400 : 500;
@@ -77,9 +34,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
+// PATCH /api/dictionaries/categories/[id] - update category.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const supabase = await createSupabase(req);
+    const supabase = await createRouteSupabase(req);
+    const { dictionariesRepo: repo } = createDataRepos(supabase);
     const {
       data: { user },
       error: userErr,
@@ -91,10 +50,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const idNum = Number(params.id);
     if (Number.isNaN(idNum)) return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
 
-    const existing = await fetchCategory(supabase, idNum);
+    const existing = await repo.getCategory(idNum);
     if (!existing) return NextResponse.json({ ok: false, message: "Not found" }, { status: 404 });
 
-    await assertMembership(supabase, existing.workspace_id, user.id);
+    await assertWorkspaceMembership(supabase, existing.workspace_id, user.id);
 
     const json = await req.json().catch(() => ({}));
     const parsed = categoryUpdateSchema.safeParse(json);
@@ -105,9 +64,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
     }
 
-    const patch: Record<string, any> = { ...parsed.data };
-    const { error } = await supabase.from("categories").update(patch).eq("id", idNum);
-    if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+    const result = await repo.updateCategory(idNum, parsed.data);
+    if (!result.ok) return NextResponse.json({ ok: false, message: result.message }, { status: 400 });
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: any) {
@@ -117,9 +75,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
+// DELETE /api/dictionaries/categories/[id] - delete category.
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const supabase = await createSupabase(req);
+    const supabase = await createRouteSupabase(req);
+    const { dictionariesRepo: repo } = createDataRepos(supabase);
     const {
       data: { user },
       error: userErr,
@@ -131,13 +91,13 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     const idNum = Number(params.id);
     if (Number.isNaN(idNum)) return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
 
-    const existing = await fetchCategory(supabase, idNum);
+    const existing = await repo.getCategory(idNum);
     if (!existing) return NextResponse.json({ ok: false, message: "Not found" }, { status: 404 });
 
-    await assertMembership(supabase, existing.workspace_id, user.id);
+    await assertWorkspaceMembership(supabase, existing.workspace_id, user.id);
 
-    const { error } = await supabase.from("categories").delete().eq("id", idNum);
-    if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+    const result = await repo.removeCategory(idNum);
+    if (!result.ok) return NextResponse.json({ ok: false, message: result.message }, { status: 400 });
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: any) {
