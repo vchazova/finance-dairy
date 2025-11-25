@@ -3,10 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/providers/AuthProvider";
+import { useApiFetch } from "@/lib/api/client";
+import { normalizeTransactionRow, toSignedAmount } from "@/entities/transactions/normalize";
+import {
+  normalizeCategoryRow,
+  normalizePaymentTypeRow,
+  normalizeCurrencyRow,
+  type NormalizedCategory,
+  type NormalizedPaymentType,
+  type NormalizedCurrency,
+} from "@/entities/dictionaries/normalize";
 
 type Tx = {
   id: string;
-  date: string; // ISO or human
+  date: string; // ISO yyyy-mm-dd
   categoryId: string;
   categoryName?: string;
   paymentTypeId?: string;
@@ -30,6 +40,7 @@ export default function WorkspaceClientPage({
   initialCurrencies?: Option[];
 }) {
   const { session } = useAuth();
+  const apiFetch = useApiFetch();
   const [open, setOpen] = useState(false);
   const [tx, setTx] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,9 +48,17 @@ export default function WorkspaceClientPage({
   const [categories, setCategories] = useState<Option[]>(initialCategories);
   const [paymentTypes, setPaymentTypes] = useState<Option[]>(initialPaymentTypes);
   const [currencies, setCurrencies] = useState<Option[]>(initialCurrencies);
+  const [categoryLabelMap, setCategoryLabelMap] = useState<Map<string, string>>(
+    new Map(initialCategories.map((c) => [c.id, c.label]))
+  );
 
   useEffect(() => {
     let cancelled = false;
+    const hasInitialDictionaries =
+      initialCategories.length > 0 &&
+      initialPaymentTypes.length > 0 &&
+      initialCurrencies.length > 0;
+
     async function loadDictionaries() {
       if (!session?.user?.id) {
         setCategories([]);
@@ -47,48 +66,31 @@ export default function WorkspaceClientPage({
         setCurrencies([]);
         return;
       }
+      // If SSR already provided dictionaries, skip extra fetch.
+      if (hasInitialDictionaries) return;
       try {
-        const [cats, ptypes, currs] = await Promise.all([
-          fetch(`/api/dictionaries/categories?workspaceId=${workspaceId}`, {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              Accept: "application/json",
-              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-            },
-          }),
-          fetch(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`, {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              Accept: "application/json",
-              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-            },
-          }),
-          fetch(`/api/dictionaries/currencies`, {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              Accept: "application/json",
-              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-            },
-          }),
-        ]);
-
         const [catsJson, ptypesJson, currsJson] = await Promise.all([
-          cats.ok ? cats.json() : Promise.resolve([]),
-          ptypes.ok ? ptypes.json() : Promise.resolve([]),
-          currs.ok ? currs.json() : Promise.resolve([]),
+          apiFetch<any[]>(`/api/dictionaries/categories?workspaceId=${workspaceId}`),
+          apiFetch<any[]>(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`),
+          apiFetch<any[]>(`/api/dictionaries/currencies`),
         ]);
 
         if (cancelled) return;
-        setCategories((catsJson as any[]).map((c) => ({ id: String(c.id), label: c.name as string })));
-        setPaymentTypes((ptypesJson as any[]).map((p) => ({ id: String(p.id), label: p.name as string })));
+        const normalizedCats = (catsJson as any[]).map((c) => normalizeCategoryRow(c));
+        setCategories(normalizedCats.map((c: NormalizedCategory) => ({ id: c.id, label: c.name })));
+        setCategoryLabelMap(new Map(normalizedCats.map((c: NormalizedCategory) => [c.id, c.name])));
+        setPaymentTypes(
+          (ptypesJson as any[])
+            .map((p) => normalizePaymentTypeRow(p))
+            .map((p: NormalizedPaymentType) => ({ id: p.id, label: p.name }))
+        );
         setCurrencies(
-          (currsJson as any[]).map((c) => ({
-            id: String(c.id),
-            label: `${c.code} (${c.symbol ?? ""})`.trim(),
-          }))
+          (currsJson as any[])
+            .map((c) => normalizeCurrencyRow(c))
+            .map((c: NormalizedCurrency) => ({
+              id: c.id,
+              label: `${c.code} (${c.symbol ?? ""})`.trim(),
+            }))
         );
       } catch {
         if (cancelled) return;
@@ -106,32 +108,20 @@ export default function WorkspaceClientPage({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/transactions?workspaceId=${workspaceId}`, {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            Accept: "application/json",
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-        });
-        if (!res.ok) {
-          const msg = (await res.text().catch(() => "")) || `Request failed (${res.status})`;
-          throw new Error(msg);
-        }
-        const list = (await res.json()) as any[];
+        const list = await apiFetch<any[]>(`/api/transactions?workspaceId=${workspaceId}`);
         if (cancelled) return;
         const mapped: Tx[] = list.map((t) => {
-          const amt = parseFloat(t.amount);
-          const signed = t.is_decrease ? -Math.abs(amt) : Math.abs(amt);
+          const n = normalizeTransactionRow(t);
           return {
-            id: String(t.id),
-            date: new Date(t.date).toISOString().slice(0, 10),
-            categoryId: String(t.category_id),
-            paymentTypeId: String(t.payment_type_id),
-            currencyId: String(t.currency_id),
-            isDecrease: t.is_decrease,
-            amount: signed,
-            comment: t.comment ?? null,
+            id: n.id,
+            date: n.date,
+            categoryId: n.categoryId,
+            categoryName: categoryLabelMap.get(n.categoryId),
+            paymentTypeId: n.paymentTypeId,
+            currencyId: n.currencyId,
+            isDecrease: n.isDecrease,
+            amount: n.amount,
+            comment: n.comment,
           };
         });
         setTx(mapped);
@@ -148,9 +138,16 @@ export default function WorkspaceClientPage({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, session?.access_token, session?.user?.id]);
-
-  const categoryLabels = new Map(categories.map((c) => [c.id, c.label]));
+  }, [
+    workspaceId,
+    session?.access_token,
+    session?.user?.id,
+    apiFetch,
+    initialCategories.length,
+    initialPaymentTypes.length,
+    initialCurrencies.length,
+    categoryLabelMap,
+  ]);
 
   return (
     <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
@@ -214,7 +211,7 @@ export default function WorkspaceClientPage({
                   >
                     <td className="px-4 py-2 whitespace-nowrap">{row.date}</td>
                     <td className="px-4 py-2">
-                      {row.categoryName || categoryLabels.get(row.categoryId) || row.categoryId}
+                      {row.categoryName || categoryLabelMap.get(row.categoryId) || row.categoryId}
                     </td>
                     <td className="px-4 py-2">
                       {paymentTypes.find((p) => p.id === row.paymentTypeId)?.label || row.paymentTypeId || "—"}
@@ -248,7 +245,6 @@ export default function WorkspaceClientPage({
             paymentTypes={paymentTypes}
             currencies={currencies}
             workspaceId={workspaceId}
-            accessToken={session?.access_token ?? null}
             onAdd={(item) => setTx((p) => [item, ...p])}
           />
         )}
@@ -264,7 +260,6 @@ function CreateTransactionDialog({
   paymentTypes,
   currencies,
   workspaceId,
-  accessToken,
 }: {
   onClose: () => void;
   onAdd: (tx: Tx) => void;
@@ -272,8 +267,8 @@ function CreateTransactionDialog({
   paymentTypes: Option[];
   currencies: Option[];
   workspaceId: string;
-  accessToken: string | null;
 }) {
+  const apiFetch = useApiFetch();
   const ref = useRef<HTMLDivElement | null>(null);
   const [date, setDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
@@ -319,32 +314,25 @@ function CreateTransactionDialog({
           comment: comment || null,
           is_decrease: isDecrease,
         };
-        const res = await fetch("/api/transactions", {
+        const json = await apiFetch<any>("/api/transactions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-          credentials: "include",
           body: JSON.stringify(payload),
         });
-        const json = (await res.json().catch(() => ({}))) as any;
-        if (!res.ok || !json?.ok) {
-          throw new Error(json?.message || `Failed (${res.status})`);
+        if (!json?.ok) {
+          throw new Error(json?.message || "Failed to create transaction");
         }
 
-        const item: Tx = {
-          id: String(json.id ?? Math.random().toString(36).slice(2)),
-          date,
-          categoryId,
-          categoryName: categories.find((c) => c.id === categoryId)?.label,
-          paymentTypeId,
-          currencyId,
-          isDecrease,
-          amount: isDecrease ? -Math.abs(value) : Math.abs(value),
-          comment: comment || null,
-        };
+          const item: Tx = {
+            id: String(json.id ?? Math.random().toString(36).slice(2)),
+            date,
+            categoryId,
+            categoryName: categories.find((c) => c.id === categoryId)?.label,
+            paymentTypeId,
+            currencyId,
+            isDecrease,
+            amount: toSignedAmount(value, isDecrease),
+            comment: comment || null,
+          };
         onAdd(item);
         onClose();
       } catch (err: any) {

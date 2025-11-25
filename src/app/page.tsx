@@ -5,9 +5,11 @@ import Header from "@/components/layout/Header";
 import WorkspacesGrid from "@/components/workspaces/WorkspacesGrid";
 import type { WorkspaceListItem } from "@/types/workspaces";
 import { useAuth } from "@/providers/AuthProvider";
+import { useApiFetch } from "@/lib/api/client";
 
 export default function HomePage() {
   const { session } = useAuth();
+  const apiFetch = useApiFetch();
 
   const [list, setList] = useState<WorkspaceListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,23 +25,7 @@ export default function HomePage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/workspaces", {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            Accept: "application/json",
-            ...(session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {}),
-          },
-        });
-        if (!res.ok) {
-          const msg =
-            (await res.text().catch(() => "")) ||
-            `Request failed (${res.status})`;
-          throw new Error(msg);
-        }
-        const data = (await res.json()) as WorkspaceListItem[];
+        const data = await apiFetch<WorkspaceListItem[]>("/api/workspaces");
         if (!cancelled) setList(data ?? []);
       } catch (e: any) {
         if (!cancelled) setError(e?.message || "Failed to load workspaces");
@@ -51,7 +37,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, apiFetch]);
 
   const items: WorkspaceListItem[] = []
     .filter((m: any) => m.workspace)

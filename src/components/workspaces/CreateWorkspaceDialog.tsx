@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/providers/AuthProvider";
+import { useApiFetch } from "@/lib/api/client";
 
 const schema = z.object({
   name: z
@@ -27,7 +28,8 @@ export default function CreateWorkspaceDialog({
   isPending: boolean;
   startTransition: React.TransitionStartFunction;
 }) {
-  const { session } = useAuth();
+  useAuth(); // keep auth context active for token refresh if needed
+  const apiFetch = useApiFetch();
   const {
     register,
     handleSubmit,
@@ -104,27 +106,14 @@ export default function CreateWorkspaceDialog({
     startTransition(async () => {
       setServerError(null);
       try {
-        const res = await fetch("/api/workspaces", {
+        const data = (await apiFetch<{ ok: boolean; id?: string; message?: string }>("/api/workspaces", {
           method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            ...(session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {}),
-          },
           body: JSON.stringify({ name: values.name }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | { ok: true; id: string }
-          | { ok: false; message?: string }
-          | null;
-        if (!res.ok) {
-          setServerError((data as any)?.message || `Request failed (${res.status})`);
-          return;
-        }
-        if (data && "ok" in data && data.ok && (data as any).id) {
+        }).catch((err: any) => {
+          setServerError(err?.message || "Request failed");
+          return null;
+        })) as { ok: boolean; id?: string; message?: string } | null;
+        if (data && data.ok && data.id) {
           onOpenChange(false);
         } else {
           setServerError((data as any)?.message || "Не удалось создать пространство");
