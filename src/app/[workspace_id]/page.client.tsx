@@ -146,7 +146,6 @@ export default function WorkspaceClientPage({
     initialCategories.length,
     initialPaymentTypes.length,
     initialCurrencies.length,
-    categoryLabelMap,
   ]);
 
   return (
