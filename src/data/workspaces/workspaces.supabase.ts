@@ -75,6 +75,22 @@ export function createWorkspacesSupabaseRepo(client?: SupabaseClient): Workspace
 
       return { ok: true, id: String(ws.id) };
     },
+
+    async update(id, payload) {
+      const patch: Record<string, any> = {};
+      if (payload.name !== undefined) patch.name = payload.name;
+      if (Object.keys(patch).length === 0) return { ok: true } as const;
+
+      const { error } = await supabase.from("workspaces").update(patch).eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
+
+    async remove(id) {
+      const { error } = await supabase.from("workspaces").delete().eq("id", id);
+      if (error) return { ok: false, message: error.message } as const;
+      return { ok: true } as const;
+    },
   };
 }
 

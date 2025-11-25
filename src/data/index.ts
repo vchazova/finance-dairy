@@ -5,6 +5,8 @@ import { dictionariesRepo as mockDictionariesRepo } from "@/data/dictionaries/di
 import { createDictionariesSupabaseRepo } from "@/data/dictionaries/dictionaries.supabase";
 import { transactionsRepo as mockTransactionsRepo } from "@/data/transactions/transactions.mock";
 import { createTransactionsSupabaseRepo } from "@/data/transactions/transactions.supabase";
+import { createWorkspaceMembersSupabaseRepo } from "@/data/workspaceMembers/workspaceMembers.supabase";
+import type { WorkspaceMembersRepo } from "@/data/workspaceMembers/workspaceMembers.repo";
 
 type Mode = "mock" | "supabase";
 const mode: Mode = (process.env.NEXT_PUBLIC_DATA_MODE as Mode) ?? "mock";
@@ -24,12 +26,14 @@ export function createDataRepos(client?: SupabaseClient) {
     mode === "supabase"
       ? createTransactionsSupabaseRepo(client)
       : mockTransactionsRepo;
+  const workspaceMembersRepo: WorkspaceMembersRepo | undefined =
+    mode === "supabase" ? createWorkspaceMembersSupabaseRepo(client) : undefined;
 
-  return { workspacesRepo, dictionariesRepo, transactionsRepo };
+  return { workspacesRepo, dictionariesRepo, transactionsRepo, workspaceMembersRepo };
 }
 
 export const dataMode = mode;
 // Default client-bound repos for places that import data layer on the client.
-const { workspacesRepo, dictionariesRepo, transactionsRepo } =
+const { workspacesRepo, dictionariesRepo, transactionsRepo, workspaceMembersRepo } =
   createDataRepos();
-export { workspacesRepo, dictionariesRepo, transactionsRepo };
+export { workspacesRepo, dictionariesRepo, transactionsRepo, workspaceMembersRepo };

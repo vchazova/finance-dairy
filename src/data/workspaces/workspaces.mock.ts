@@ -46,4 +46,12 @@ export const workspacesRepo: WorkspacesRepo = {
 
     return { ok: true, id: String(ws.id) };
   },
+
+  async update(): Promise<{ ok: true } | { ok: false; message: string }> {
+    return { ok: true };
+  },
+
+  async remove(): Promise<{ ok: true } | { ok: false; message: string }> {
+    return { ok: true };
+  },
 };

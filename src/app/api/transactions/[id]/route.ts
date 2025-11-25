@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // GET /api/transactions/[id] - fetch single transaction with membership check.
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const supabase = await createRouteSupabase(req);
     const { transactionsRepo: repo } = createDataRepos(supabase);
     const {
@@ -19,7 +20,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const idNum = Number(params.id);
+    const idNum = Number(id);
     if (Number.isNaN(idNum)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
@@ -36,8 +37,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // PATCH /api/transactions/[id] - update transaction owned by workspace.
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const supabase = await createRouteSupabase(req);
     const { transactionsRepo: repo } = createDataRepos(supabase);
     const {
@@ -48,7 +50,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const idNum = Number(params.id);
+    const idNum = Number(id);
     if (Number.isNaN(idNum)) {
       return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
     }
@@ -80,8 +82,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 // DELETE /api/transactions/[id] - delete transaction after membership check.
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const supabase = await createRouteSupabase(req);
     const { transactionsRepo: repo } = createDataRepos(supabase);
     const {
@@ -92,7 +95,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const idNum = Number(params.id);
+    const idNum = Number(id);
     if (Number.isNaN(idNum)) {
       return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
     }

@@ -11,14 +11,25 @@ export type CreateWorkspaceResult =
 
 export interface WorkspacesRepo {
   /**
-   * Возвращает список рабочих пространств пользователя
-   * в формате, удобном для UI.
+   * List workspaces for user with role.
    */
   listForUser(userId: string): Promise<WorkspaceListItem[]>;
 
   /**
-   * Создает новое рабочее пространство и добавляет текущего пользователя
-   * как владельца/админа (детали — внутри реализации).
+   * Create workspace and return id.
    */
   create(input: CreateWorkspaceInput): Promise<CreateWorkspaceResult>;
+
+  /**
+   * Update workspace (name only for now).
+   */
+  update(
+    id: string | number,
+    payload: { name?: string }
+  ): Promise<{ ok: true } | { ok: false; message: string }>;
+
+  /**
+   * Delete workspace by id.
+   */
+  remove(id: string | number): Promise<{ ok: true } | { ok: false; message: string }>;
 }
