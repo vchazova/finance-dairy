@@ -15,3 +15,8 @@ export { Input } from "./field/Input";
 export { TextArea } from "./field/TextArea";
 export { Select } from "./field/Select";
 export type { SelectOption, SelectProps } from "./field/Select";
+
+export { EmojiPicker } from "./picker/EmojiPicker";
+export type { EmojiPickerProps, EmojiOption } from "./picker/EmojiPicker";
+export { ColorPicker } from "./picker/ColorPicker";
+export type { ColorPickerProps } from "./picker/ColorPicker";

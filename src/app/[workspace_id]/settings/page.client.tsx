@@ -15,9 +15,19 @@ import {
   type NormalizedPaymentType,
 } from "@/entities/dictionaries/normalize";
 import { Select } from "@/components/ui/field/Select";
-import { AddCategoryForm, type CategoryDraft } from "@/components/settings/AddCategoryForm";
-import { AddCurrencyForm, type CurrencyDraft } from "@/components/settings/AddCurrencyForm";
-import { EditPaymentTypeRow, type PaymentTypeDraft } from "@/components/settings/EditPaymentTypeRow";
+import { EmojiPicker } from "@/components/ui";
+import {
+  AddCategoryForm,
+  type CategoryDraft,
+} from "@/components/settings/AddCategoryForm";
+import {
+  AddCurrencyForm,
+  type CurrencyDraft,
+} from "@/components/settings/AddCurrencyForm";
+import {
+  EditPaymentTypeRow,
+  type PaymentTypeDraft,
+} from "@/components/settings/EditPaymentTypeRow";
 import {
   DictionaryRow,
   DictionaryTable,
@@ -47,7 +57,9 @@ export default function WorkspaceSettingsClient({
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categories(workspaceId),
     queryFn: async () => {
-      const rows = await apiFetch<any[]>(`/api/dictionaries/categories?workspaceId=${workspaceId}`);
+      const rows = await apiFetch<any[]>(
+        `/api/dictionaries/categories?workspaceId=${workspaceId}`
+      );
       return rows.map((row) => normalizeCategoryRow(row));
     },
     initialData: initialCategories,
@@ -57,7 +69,9 @@ export default function WorkspaceSettingsClient({
   const paymentTypesQuery = useQuery({
     queryKey: queryKeys.paymentTypes(workspaceId),
     queryFn: async () => {
-      const rows = await apiFetch<any[]>(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`);
+      const rows = await apiFetch<any[]>(
+        `/api/dictionaries/payment_types?workspaceId=${workspaceId}`
+      );
       return rows.map((row) => normalizePaymentTypeRow(row));
     },
     initialData: initialPaymentTypes,
@@ -87,9 +101,16 @@ export default function WorkspaceSettingsClient({
     error: (currenciesQuery.error as Error | null)?.message ?? null,
   };
 
-  const reloadCategories = () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) });
-  const reloadPaymentTypes = () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) });
-  const reloadCurrencies = () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies });
+  const reloadCategories = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.categories(workspaceId),
+    });
+  const reloadPaymentTypes = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.paymentTypes(workspaceId),
+    });
+  const reloadCurrencies = () =>
+    queryClient.invalidateQueries({ queryKey: queryKeys.currencies });
 
   return (
     <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
@@ -98,16 +119,22 @@ export default function WorkspaceSettingsClient({
         <div className="rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.12em] text-[hsl(var(--fg-muted))]">Workspace settings</p>
-              <h1 className="text-2xl font-semibold leading-tight">Dictionaries</h1>
+              <p className="text-xs uppercase tracking-[0.12em] text-[hsl(var(--fg-muted))]">
+                Workspace settings
+              </p>
+              <h1 className="text-2xl font-semibold leading-tight">
+                Dictionaries
+              </h1>
               <p className="text-sm text-[hsl(var(--fg-muted))]">
-                Manage categories, payment types and currencies for this workspace.
+                Manage categories, payment types and currencies for this
+                workspace.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Link
                 href={`/${workspaceId}`}
-                className="inline-flex h-9 items-center justify-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]">
+                className="inline-flex h-9 items-center justify-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]"
+              >
                 Back
               </Link>
               <span className="rounded-full border border-[hsl(var(--border))] px-3 py-1 text-xs text-[hsl(var(--fg-muted))]">
@@ -161,7 +188,11 @@ function CategoriesBlock({
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
   const queryClient = useQueryClient();
-  const [editDraft, setEditDraft] = useState<CategoryDraft>({ name: "", icon: "", color: "" });
+  const [editDraft, setEditDraft] = useState<CategoryDraft>({
+    name: "",
+    icon: "",
+    color: "",
+  });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -178,12 +209,15 @@ function CategoriesBlock({
           color: draft.color || null,
         }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.categories(workspaceId),
+      }),
   });
 
   const updateCategoryMutation = useMutation({
     mutationFn: ({ id, draft }: { id: string; draft: CategoryDraft }) =>
-      apiFetch(`/api/dictionaries/categories/${id}`, {
+      apiFetch("/api/dictionaries/categories/", {
         method: "PATCH",
         body: JSON.stringify({
           name: draft.name.trim(),
@@ -191,12 +225,19 @@ function CategoriesBlock({
           color: draft.color.trim() || null,
         }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.categories(workspaceId),
+      }),
   });
 
   const removeCategoryMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/dictionaries/categories/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) }),
+    mutationFn: (id: string) =>
+      apiFetch("/api/dictionaries/categories/", { method: "DELETE" }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.categories(workspaceId),
+      }),
   });
 
   async function createCategory(draft: CategoryDraft) {
@@ -212,7 +253,7 @@ function CategoriesBlock({
 
   async function updateCategory(id: string) {
     if (!editDraft.name.trim()) {
-      setActionError("Имя категории обязательно");
+      setActionError("Name is required");
       return;
     }
     setActionError(null);
@@ -243,8 +284,8 @@ function CategoriesBlock({
 
   return (
     <SectionShell
-      title="Категории"
-      description="Добавляйте и редактируйте категории расходов и доходов."
+      title="Categories"
+      description="Manage income and expense categories."
       count={data.length}
       status={status}
       onReload={onReload}
@@ -253,9 +294,9 @@ function CategoriesBlock({
         <AddCategoryForm onSubmit={createCategory} />
 
         <DictionaryTable
-          columns={["Название", "Иконка", "Цвет"]}
+          columns={["Name", "Icon", "Color"]}
           loading={status.loading}
-          emptyText="Категории пока не добавлены."
+          emptyText="No categories yet."
           rows={data.map((row) => {
             const isEditing = editId === row.id;
             return (
@@ -263,28 +304,43 @@ function CategoriesBlock({
                 key={row.id}
                 cells={[
                   isEditing ? (
-                    <InlineInput value={editDraft.name} onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))} />
+                    <InlineInput
+                      value={editDraft.name}
+                      onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))}
+                    />
                   ) : (
                     <span className="font-medium">{row.name}</span>
                   ),
                   isEditing ? (
-                    <InlineInput value={editDraft.icon} onChange={(v) => setEditDraft((p) => ({ ...p, icon: v }))} />
+                    <InlineInput
+                      value={editDraft.icon}
+                      onChange={(v) => setEditDraft((p) => ({ ...p, icon: v }))}
+                    />
                   ) : (
-                    row.icon || "—"
+                    row.icon || "-"
                   ),
                   isEditing ? (
-                    <InlineInput value={editDraft.color} onChange={(v) => setEditDraft((p) => ({ ...p, color: v }))} />
+                    <InlineInput
+                      value={editDraft.color}
+                      onChange={(v) =>
+                        setEditDraft((p) => ({ ...p, color: v }))
+                      }
+                    />
                   ) : (
-                    row.color || "—"
+                    row.color || "-"
                   ),
                 ]}
                 actions={
                   isEditing ? (
                     <>
-                      <InlineButton onClick={() => setEditId(null)} text="Отмена" variant="ghost" />
+                      <InlineButton
+                        onClick={() => setEditId(null)}
+                        text="Cancel"
+                        variant="ghost"
+                      />
                       <InlineButton
                         onClick={() => updateCategory(row.id)}
-                        text={mutatingId === row.id ? "Сохранение..." : "Сохранить"}
+                        text={mutatingId === row.id ? "Saving..." : "Save"}
                         disabled={mutatingId === row.id}
                         variant="primary"
                       />
@@ -300,11 +356,11 @@ function CategoriesBlock({
                             color: row.color || "",
                           });
                         }}
-                        text="Изменить"
+                        text="Edit"
                       />
                       <InlineButton
                         onClick={() => setConfirmDeleteId(row.id)}
-                        text={mutatingId === row.id ? "..." : "Удалить"}
+                        text={mutatingId === row.id ? "..." : "Delete"}
                         disabled={mutatingId === row.id}
                         variant="danger"
                       />
@@ -318,10 +374,10 @@ function CategoriesBlock({
       </div>
       <ConfirmDialog
         open={!!confirmDeleteId}
-        title="Удалить категорию?"
-        description="Категория и связанные данные могут быть недоступны после удаления."
-        confirmText="Удалить"
-        cancelText="Отмена"
+        title="Delete category?"
+        description="Category and related data may be unavailable after deletion."
+        confirmText="Delete"
+        cancelText="Cancel"
         loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {
@@ -332,7 +388,9 @@ function CategoriesBlock({
           }
         }}
       />
-      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
+      {actionError && (
+        <p className="mt-3 text-sm text-red-600">{actionError}</p>
+      )}
     </SectionShell>
   );
 }
@@ -357,13 +415,20 @@ function PaymentTypesBlock({
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<PaymentTypeDraft>({ name: "", icon: "", defaultCurrencyId: "" });
+  const [draft, setDraft] = useState<PaymentTypeDraft>({
+    name: "",
+    icon: "",
+    defaultCurrencyId: "",
+  });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const currencyOptions = currencies.map((c) => ({ value: c.id, label: `${c.code} • ${c.name}` }));
+  const currencyOptions = currencies.map((c) => ({
+    value: c.id,
+    label: c.code + " - " + c.name,
+  }));
 
   const createPaymentTypeMutation = useMutation({
     mutationFn: (input: PaymentTypeDraft) =>
@@ -373,10 +438,15 @@ function PaymentTypesBlock({
           workspace_id: Number(workspaceId),
           name: input.name.trim(),
           icon: input.icon.trim() || null,
-          default_currency_id: input.defaultCurrencyId ? Number(input.defaultCurrencyId) : null,
+          default_currency_id: input.defaultCurrencyId
+            ? Number(input.defaultCurrencyId)
+            : null,
         }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.paymentTypes(workspaceId),
+      }),
   });
 
   const updatePaymentTypeMutation = useMutation({
@@ -386,20 +456,29 @@ function PaymentTypesBlock({
         body: JSON.stringify({
           name: input.name.trim(),
           icon: input.icon.trim() || null,
-          default_currency_id: input.defaultCurrencyId ? Number(input.defaultCurrencyId) : null,
+          default_currency_id: input.defaultCurrencyId
+            ? Number(input.defaultCurrencyId)
+            : null,
         }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.paymentTypes(workspaceId),
+      }),
   });
 
   const removePaymentTypeMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/dictionaries/payment_types/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) }),
+    mutationFn: (id: string) =>
+      apiFetch(`/api/dictionaries/payment_types/${id}`, { method: "DELETE" }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.paymentTypes(workspaceId),
+      }),
   });
 
   async function createPaymentType() {
     if (!draft.name.trim()) {
-      setActionError("Имя платежа обязательно");
+      setActionError("Name is required");
       return;
     }
     setActionError(null);
@@ -416,7 +495,7 @@ function PaymentTypesBlock({
 
   async function updatePaymentType(id: string, input: PaymentTypeDraft) {
     if (!input.name.trim()) {
-      setActionError("Имя платежа обязательно");
+      setActionError("Name is required");
       return;
     }
     setActionError(null);
@@ -447,8 +526,8 @@ function PaymentTypesBlock({
 
   return (
     <SectionShell
-      title="Способы оплаты"
-      description="Настройте наличные, карты, кошельки и их валюту по умолчанию."
+      title="Payment methods"
+      description="Manage wallets, cards and default currency."
       count={data.length}
       status={status}
       onReload={onReload}
@@ -456,46 +535,54 @@ function PaymentTypesBlock({
       <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
         <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Добавить способ</h3>
+            <h3 className="text-sm font-semibold">Create payment method</h3>
             <button
               type="button"
               onClick={() => onReloadCurrencies()}
               disabled={currencyStatus.loading}
               className="text-xs text-[hsl(var(--fg-muted))] underline-offset-4 hover:underline disabled:opacity-60"
             >
-              {currencyStatus.loading ? "Обновление..." : "Обновить валюты"}
+              {currencyStatus.loading ? "Refreshing..." : "Refresh currencies"}
             </button>
           </div>
           <div className="mt-3 space-y-3">
             <LabeledField
-              label="Название"
+              label="Name"
               value={draft.name}
               onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
-              placeholder="Карта, наличные..."
+              placeholder="Card, Cash..."
             />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <LabeledField
-                label="Иконка"
+              <EmojiPicker
+                label="Icon"
                 value={draft.icon}
-                onChange={(v) => setDraft((p) => ({ ...p, icon: v }))}
-                placeholder="emoji или icon name"
+                onChange={(icon) => setDraft((p) => ({ ...p, icon }))}
               />
               <Select
-                label="Валюта по умолчанию"
-                options={[{ value: "", label: "Не назначать" }, ...currencyOptions]}
+                label="Default currency"
+                options={[
+                  { value: "", label: "Not selected" },
+                  ...currencyOptions,
+                ]}
                 value={draft.defaultCurrencyId}
-                onChange={(val) => setDraft((p) => ({ ...p, defaultCurrencyId: val }))}
+                onChange={(val) =>
+                  setDraft((p) => ({ ...p, defaultCurrencyId: val }))
+                }
               />
             </div>
-            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+            {actionError && (
+              <p className="text-sm text-red-600">{actionError}</p>
+            )}
             <div className="flex items-center justify-end gap-2">
               <InlineButton
-                text="Сбросить"
+                text="Reset"
                 variant="ghost"
-                onClick={() => setDraft({ name: "", icon: "", defaultCurrencyId: "" })}
+                onClick={() =>
+                  setDraft({ name: "", icon: "", defaultCurrencyId: "" })
+                }
               />
               <InlineButton
-                text={mutatingId === "new" ? "Создание..." : "Добавить"}
+                text={mutatingId === "new" ? "Creating..." : "Create"}
                 variant="primary"
                 disabled={mutatingId === "new"}
                 onClick={createPaymentType}
@@ -505,14 +592,15 @@ function PaymentTypesBlock({
         </div>
 
         <DictionaryTable
-          columns={["Название", "Иконка", "Валюта по умолчанию"]}
+          columns={["Name", "Icon", "Default currency"]}
           loading={status.loading}
-          emptyText="Платежные методы пока не добавлены."
+          emptyText="No payment methods yet."
           rows={data.map((row) => {
             const isEditing = editId === row.id;
             const currentCurrency = row.defaultCurrencyId
-              ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code || row.defaultCurrencyId
-              : "—";
+              ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code ||
+                row.defaultCurrencyId
+              : "-";
             if (isEditing) {
               return (
                 <EditPaymentTypeRow
@@ -522,7 +610,9 @@ function PaymentTypesBlock({
                   savingId={mutatingId}
                   onCancel={() => setEditId(null)}
                   onDelete={() => setConfirmDeleteId(row.id)}
-                  onSave={(draftUpdate) => updatePaymentType(row.id, draftUpdate)}
+                  onSave={(draftUpdate) =>
+                    updatePaymentType(row.id, draftUpdate)
+                  }
                 />
               );
             }
@@ -534,7 +624,7 @@ function PaymentTypesBlock({
                   <span className="font-medium" key="name">
                     {row.name}
                   </span>,
-                  row.icon || "—",
+                  row.icon || "-",
                   currentCurrency,
                 ]}
                 actions={
@@ -548,11 +638,11 @@ function PaymentTypesBlock({
                           defaultCurrencyId: row.defaultCurrencyId || "",
                         });
                       }}
-                      text="Изменить"
+                      text="Edit"
                     />
                     <InlineButton
                       onClick={() => setConfirmDeleteId(row.id)}
-                      text={mutatingId === row.id ? "..." : "Удалить"}
+                      text={mutatingId === row.id ? "..." : "Delete"}
                       disabled={mutatingId === row.id}
                       variant="danger"
                     />
@@ -565,10 +655,10 @@ function PaymentTypesBlock({
       </div>
       <ConfirmDialog
         open={!!confirmDeleteId}
-        title="Удалить способ оплаты?"
-        description="Будут убраны записи об этом способе оплаты."
-        confirmText="Удалить"
-        cancelText="Отмена"
+        title="Delete payment method?"
+        description="Payment method will be unavailable after deletion."
+        confirmText="Delete"
+        cancelText="Cancel"
         loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {
@@ -579,7 +669,9 @@ function PaymentTypesBlock({
           }
         }}
       />
-      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
+      {actionError && (
+        <p className="mt-3 text-sm text-red-600">{actionError}</p>
+      )}
     </SectionShell>
   );
 }
@@ -596,8 +688,16 @@ function CurrenciesBlock({
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<CurrencyDraft>({ code: "", name: "", symbol: "" });
-  const [editDraft, setEditDraft] = useState<CurrencyDraft>({ code: "", name: "", symbol: "" });
+  const [draft, setDraft] = useState<CurrencyDraft>({
+    code: "",
+    name: "",
+    symbol: "",
+  });
+  const [editDraft, setEditDraft] = useState<CurrencyDraft>({
+    code: "",
+    name: "",
+    symbol: "",
+  });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -613,7 +713,8 @@ function CurrenciesBlock({
           symbol: d.symbol.trim(),
         }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
   });
 
   const updateCurrencyMutation = useMutation({
@@ -626,12 +727,15 @@ function CurrenciesBlock({
           symbol: d.symbol.trim(),
         }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
   });
 
   const removeCurrencyMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/dictionaries/currencies/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+    mutationFn: (id: string) =>
+      apiFetch(`/api/dictionaries/currencies/${id}`, { method: "DELETE" }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
   });
 
   async function createCurrency(d: CurrencyDraft) {
@@ -647,7 +751,11 @@ function CurrenciesBlock({
   }
 
   async function updateCurrency(id: string) {
-    if (!editDraft.code.trim() || !editDraft.name.trim() || !editDraft.symbol.trim()) {
+    if (
+      !editDraft.code.trim() ||
+      !editDraft.name.trim() ||
+      !editDraft.symbol.trim()
+    ) {
       setActionError("Все поля обязательны");
       return;
     }
@@ -699,17 +807,28 @@ function CurrenciesBlock({
                 key={row.id}
                 cells={[
                   isEditing ? (
-                    <InlineInput value={editDraft.code} onChange={(v) => setEditDraft((p) => ({ ...p, code: v }))} />
+                    <InlineInput
+                      value={editDraft.code}
+                      onChange={(v) => setEditDraft((p) => ({ ...p, code: v }))}
+                    />
                   ) : (
                     <span className="font-medium">{row.code}</span>
                   ),
                   isEditing ? (
-                    <InlineInput value={editDraft.name} onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))} />
+                    <InlineInput
+                      value={editDraft.name}
+                      onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))}
+                    />
                   ) : (
                     row.name
                   ),
                   isEditing ? (
-                    <InlineInput value={editDraft.symbol} onChange={(v) => setEditDraft((p) => ({ ...p, symbol: v }))} />
+                    <InlineInput
+                      value={editDraft.symbol}
+                      onChange={(v) =>
+                        setEditDraft((p) => ({ ...p, symbol: v }))
+                      }
+                    />
                   ) : (
                     row.symbol
                   ),
@@ -717,10 +836,16 @@ function CurrenciesBlock({
                 actions={
                   isEditing ? (
                     <>
-                      <InlineButton onClick={() => setEditId(null)} text="Отмена" variant="ghost" />
+                      <InlineButton
+                        onClick={() => setEditId(null)}
+                        text="Отмена"
+                        variant="ghost"
+                      />
                       <InlineButton
                         onClick={() => updateCurrency(row.id)}
-                        text={mutatingId === row.id ? "Сохранение..." : "Сохранить"}
+                        text={
+                          mutatingId === row.id ? "Сохранение..." : "Сохранить"
+                        }
                         disabled={mutatingId === row.id}
                         variant="primary"
                       />
@@ -730,7 +855,11 @@ function CurrenciesBlock({
                       <InlineButton
                         onClick={() => {
                           setEditId(row.id);
-                          setEditDraft({ code: row.code, name: row.name, symbol: row.symbol });
+                          setEditDraft({
+                            code: row.code,
+                            name: row.name,
+                            symbol: row.symbol,
+                          });
                         }}
                         text="Изменить"
                       />
@@ -764,7 +893,9 @@ function CurrenciesBlock({
           }
         }}
       />
-      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
+      {actionError && (
+        <p className="mt-3 text-sm text-red-600">{actionError}</p>
+      )}
     </SectionShell>
   );
 }
@@ -782,7 +913,9 @@ function LabeledField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">{label}</label>
+      <label className="mb-1 block text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">
+        {label}
+      </label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button/Button";
 import { Input } from "@/components/ui/field/Input";
+import { ColorPicker, EmojiPicker } from "@/components/ui";
 
 export type CategoryDraft = { name: string; icon: string; color: string };
 
@@ -42,22 +43,20 @@ export function AddCategoryForm({
       <div className="mt-3 space-y-3">
         <Input
           label="Название"
-          placeholder="Продукты, Путешествия..."
+          placeholder="Еда, Транспорт..."
           value={draft.name}
           onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
         />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input
+          <EmojiPicker
             label="Иконка"
-            placeholder="emoji или icon name"
             value={draft.icon}
-            onChange={(e) => setDraft((p) => ({ ...p, icon: e.target.value }))}
+            onChange={(icon) => setDraft((p) => ({ ...p, icon }))}
           />
-          <Input
+          <ColorPicker
             label="Цвет"
-            placeholder="#5b8def"
             value={draft.color}
-            onChange={(e) => setDraft((p) => ({ ...p, color: e.target.value }))}
+            onChange={(color) => setDraft((p) => ({ ...p, color }))}
           />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -78,7 +77,7 @@ export function AddCategoryForm({
             onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? "Сохраняем..." : "Добавить"}
+            {loading ? "Сохранение..." : "Добавить"}
           </Button>
         </div>
       </div>
