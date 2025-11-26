@@ -3,7 +3,7 @@ import { cn } from "@/components/ui/utils/cn";
 import { tokens } from "@/components/ui/theme/tokens";
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "default" | "ghost"; // ghost = без рамок
+  variant?: "primary" | "default" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   block?: boolean;
 };
@@ -29,6 +29,8 @@ export const Button: React.FC<ButtonProps> = ({
     default:
       "bg-[hsl(var(--card))] text-[hsl(var(--fg))] border border-[hsl(var(--border))] hover:bg-black/5 active:bg-black/10",
     ghost: "bg-transparent text-[hsl(var(--fg))] hover:bg-black/5",
+    danger:
+      "border border-red-200 text-red-600 bg-[hsl(var(--bg))] hover:bg-red-50 active:bg-red-100",
   } as const;
 
   const bySize = {

@@ -1,27 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/providers/AuthProvider";
 import { useApiFetch } from "@/lib/api/client";
 import {
   normalizeCategoryRow,
-  normalizePaymentTypeRow,
   normalizeCurrencyRow,
+  normalizePaymentTypeRow,
   type NormalizedCategory,
-  type NormalizedPaymentType,
   type NormalizedCurrency,
+  type NormalizedPaymentType,
 } from "@/entities/dictionaries/normalize";
-
-type Status = { loading: boolean; error: string | null };
-type CategoryDraft = { name: string; icon: string; color: string };
-type PaymentTypeDraft = {
-  name: string;
-  icon: string;
-  defaultCurrencyId: string;
-};
-type CurrencyDraft = { code: string; name: string; symbol: string };
+import { Select } from "@/components/ui/field/Select";
+import { AddCategoryForm, type CategoryDraft } from "@/components/settings/AddCategoryForm";
+import { AddCurrencyForm, type CurrencyDraft } from "@/components/settings/AddCurrencyForm";
+import { EditPaymentTypeRow, type PaymentTypeDraft } from "@/components/settings/EditPaymentTypeRow";
+import {
+  DictionaryRow,
+  DictionaryTable,
+  InlineButton,
+  InlineInput,
+  SectionShell,
+  type SectionStatus,
+} from "@/components/settings/DictionaryUI";
+import { ConfirmDialog } from "@/components/settings/ConfirmDialog";
 
 export default function WorkspaceSettingsClient({
   workspaceId,
@@ -38,78 +42,63 @@ export default function WorkspaceSettingsClient({
   const apiFetch = useApiFetch();
   const workspaceIdNum = useMemo(() => Number(workspaceId), [workspaceId]);
 
-  const [categories, setCategories] =
-    useState<NormalizedCategory[]>(initialCategories);
-  const [paymentTypes, setPaymentTypes] =
-    useState<NormalizedPaymentType[]>(initialPaymentTypes);
-  const [currencies, setCurrencies] =
-    useState<NormalizedCurrency[]>(initialCurrencies);
+  const [categories, setCategories] = useState<NormalizedCategory[]>(initialCategories);
+  const [paymentTypes, setPaymentTypes] = useState<NormalizedPaymentType[]>(initialPaymentTypes);
+  const [currencies, setCurrencies] = useState<NormalizedCurrency[]>(initialCurrencies);
 
-  const [categoryStatus, setCategoryStatus] = useState<Status>({
-    loading: false,
-    error: null,
-  });
-  const [paymentTypeStatus, setPaymentTypeStatus] = useState<Status>({
-    loading: false,
-    error: null,
-  });
-  const [currencyStatus, setCurrencyStatus] = useState<Status>({
-    loading: false,
-    error: null,
-  });
+  const [categoryStatus, setCategoryStatus] = useState<SectionStatus>({ loading: false, error: null });
+  const [paymentTypeStatus, setPaymentTypeStatus] = useState<SectionStatus>({ loading: false, error: null });
+  const [currencyStatus, setCurrencyStatus] = useState<SectionStatus>({ loading: false, error: null });
 
+  // Avoid 401 on hard load: wait for session before fetching.
   useEffect(() => {
+    if (!session?.access_token) return;
     if (initialCategories.length === 0) void reloadCategories();
     if (initialPaymentTypes.length === 0) void reloadPaymentTypes();
     if (initialCurrencies.length === 0) void reloadCurrencies();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    session?.access_token,
+    initialCategories.length,
+    initialPaymentTypes.length,
+    initialCurrencies.length,
+  ]);
 
   async function reloadCategories() {
+    if (!session?.access_token) return;
     if (!workspaceIdNum || Number.isNaN(workspaceIdNum)) return;
     setCategoryStatus({ loading: true, error: null });
     try {
-      const rows = await apiFetch<any[]>(
-        `/api/dictionaries/categories?workspaceId=${workspaceId}`
-      );
+      const rows = await apiFetch<any[]>(`/api/dictionaries/categories?workspaceId=${workspaceId}`);
       setCategories(rows.map((row) => normalizeCategoryRow(row)));
       setCategoryStatus({ loading: false, error: null });
     } catch (e: any) {
-      setCategoryStatus({
-        loading: false,
-        error: e?.message || "Не удалось загрузить категории",
-      });
+      setCategoryStatus({ loading: false, error: e?.message || "Failed to load categories" });
     }
   }
 
   async function reloadPaymentTypes() {
+    if (!session?.access_token) return;
     if (!workspaceIdNum || Number.isNaN(workspaceIdNum)) return;
     setPaymentTypeStatus({ loading: true, error: null });
     try {
-      const rows = await apiFetch<any[]>(
-        `/api/dictionaries/payment_types?workspaceId=${workspaceId}`
-      );
+      const rows = await apiFetch<any[]>(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`);
       setPaymentTypes(rows.map((row) => normalizePaymentTypeRow(row)));
       setPaymentTypeStatus({ loading: false, error: null });
     } catch (e: any) {
-      setPaymentTypeStatus({
-        loading: false,
-        error: e?.message || "Не удалось загрузить типы платежей",
-      });
+      setPaymentTypeStatus({ loading: false, error: e?.message || "Failed to load payment types" });
     }
   }
 
   async function reloadCurrencies() {
+    if (!session?.access_token) return;
     setCurrencyStatus({ loading: true, error: null });
     try {
       const rows = await apiFetch<any[]>(`/api/dictionaries/currencies`);
       setCurrencies(rows.map((row) => normalizeCurrencyRow(row)));
       setCurrencyStatus({ loading: false, error: null });
     } catch (e: any) {
-      setCurrencyStatus({
-        loading: false,
-        error: e?.message || "Не удалось загрузить валюты",
-      });
+      setCurrencyStatus({ loading: false, error: e?.message || "Failed to load currencies" });
     }
   }
 
@@ -120,23 +109,18 @@ export default function WorkspaceSettingsClient({
         <div className="rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.12em] text-[hsl(var(--fg-muted))]">
-                Workspace settings
-              </p>
-              <h1 className="text-2xl font-semibold leading-tight">
-                Справочники
-              </h1>
+              <p className="text-xs uppercase tracking-[0.12em] text-[hsl(var(--fg-muted))]">Workspace settings</p>
+              <h1 className="text-2xl font-semibold leading-tight">Dictionaries</h1>
               <p className="text-sm text-[hsl(var(--fg-muted))]">
-                Управляйте категориями, типами платежей и валютами для рабочего
-                пространства.
+                Manage categories, payment types and currencies for this workspace.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Link
                 href={`/${workspaceId}`}
-                className="h-9 rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--bg))]"
+                className="inline-flex h-9 items-center justify-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]"
               >
-                Назад
+                Back
               </Link>
               <span className="rounded-full border border-[hsl(var(--border))] px-3 py-1 text-xs text-[hsl(var(--fg-muted))]">
                 Workspace #{workspaceId}
@@ -175,50 +159,6 @@ export default function WorkspaceSettingsClient({
   );
 }
 
-function SectionShell({
-  title,
-  description,
-  count,
-  status,
-  onReload,
-  children,
-}: {
-  title: string;
-  description: string;
-  count: number;
-  status: Status;
-  onReload: () => void | Promise<void>;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--bg))] p-5 shadow-sm">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">{title}</h2>
-          <p className="text-sm text-[hsl(var(--fg-muted))]">{description}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onReload()}
-            disabled={status.loading}
-            className="h-9 rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))] disabled:opacity-60"
-          >
-            {status.loading ? "Обновляем..." : "Обновить"}
-          </button>
-          <span className="rounded-full bg-[hsl(var(--card))] px-3 py-1 text-xs text-[hsl(var(--fg-muted))]">
-            {count} шт.
-          </span>
-        </div>
-      </div>
-      <div className="mt-5">{children}</div>
-      {status.error && (
-        <p className="mt-3 text-sm text-red-600">{status.error}</p>
-      )}
-    </section>
-  );
-}
-
 function CategoriesBlock({
   workspaceId,
   data,
@@ -228,49 +168,36 @@ function CategoriesBlock({
 }: {
   workspaceId: string;
   data: NormalizedCategory[];
-  status: Status;
+  status: SectionStatus;
   onReload: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
-  const [draft, setDraft] = useState<CategoryDraft>({
-    name: "",
-    icon: "",
-    color: "",
-  });
+  const [editDraft, setEditDraft] = useState<CategoryDraft>({ name: "", icon: "", color: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const reset = () => setDraft({ name: "", icon: "", color: "" });
-
-  async function createCategory() {
-    if (!draft.name.trim()) {
-      setActionError("Название обязательно");
-      return;
-    }
-    setActionError(null);
+  async function createCategory(draft: CategoryDraft) {
     setMutatingId("new");
     try {
       await apiFetch("/api/dictionaries/categories", {
         method: "POST",
         body: JSON.stringify({
           workspace_id: Number(workspaceId),
-          name: draft.name.trim(),
-          icon: draft.icon.trim() || null,
-          color: draft.color.trim() || null,
+          name: draft.name,
+          icon: draft.icon || null,
+          color: draft.color || null,
         }),
       });
-      reset();
       await onReload();
-    } catch (e: any) {
-      setActionError(e?.message || "Не удалось создать категорию");
     } finally {
       setMutatingId(null);
     }
   }
 
-  async function updateCategory(id: string, input: CategoryDraft) {
-    if (!input.name.trim()) {
+  async function updateCategory(id: string) {
+    if (!editDraft.name.trim()) {
       setActionError("Название обязательно");
       return;
     }
@@ -280,15 +207,15 @@ function CategoriesBlock({
       await apiFetch(`/api/dictionaries/categories/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          name: input.name.trim(),
-          icon: input.icon.trim() || null,
-          color: input.color.trim() || null,
+          name: editDraft.name.trim(),
+          icon: editDraft.icon.trim() || null,
+          color: editDraft.color.trim() || null,
         }),
       });
       setEditId(null);
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось обновить категорию");
+      setActionError(e?.message || "Failed to update category");
     } finally {
       setMutatingId(null);
     }
@@ -297,17 +224,13 @@ function CategoriesBlock({
   async function removeCategory(id: string) {
     const row = data.find((c) => c.id === id);
     if (!row) return;
-    const ok = window.confirm(`Удалить категорию "${row.name}"?`);
-    if (!ok) return;
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/categories/${id}`, {
-        method: "DELETE",
-      });
+      await apiFetch(`/api/dictionaries/categories/${id}`, { method: "DELETE" });
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось удалить категорию");
+      setActionError(e?.message || "Failed to delete category");
     } finally {
       setMutatingId(null);
     }
@@ -316,57 +239,13 @@ function CategoriesBlock({
   return (
     <SectionShell
       title="Категории"
-      description="Используются в транзакциях для группировки расходов и доходов."
+      description="Используются для группировки расходов и доходов."
       count={data.length}
       status={status}
       onReload={onReload}
     >
       <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
-        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-          <h3 className="text-sm font-semibold">Добавить категорию</h3>
-          <div className="mt-3 space-y-3">
-            <LabeledInput
-              label="Название"
-              placeholder="Продукты, Путешествия..."
-              value={draft.name}
-              onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <LabeledInput
-                label="Иконка"
-                placeholder="emoji или icon name"
-                value={draft.icon}
-                onChange={(v) => setDraft((p) => ({ ...p, icon: v }))}
-              />
-              <LabeledInput
-                label="Цвет"
-                placeholder="#5b8def"
-                value={draft.color}
-                onChange={(v) => setDraft((p) => ({ ...p, color: v }))}
-              />
-            </div>
-            {actionError && (
-              <p className="text-sm text-red-600">{actionError}</p>
-            )}
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={reset}
-                className="h-9 rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--bg))]"
-              >
-                Сбросить
-              </button>
-              <button
-                type="button"
-                onClick={createCategory}
-                disabled={mutatingId === "new"}
-                className="h-9 rounded-xl bg-[hsl(var(--color-primary))] px-3 text-sm text-white disabled:opacity-60"
-              >
-                {mutatingId === "new" ? "Сохраняем..." : "Добавить"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AddCategoryForm onSubmit={createCategory} />
 
         <DictionaryTable
           columns={["Название", "Иконка", "Цвет"]}
@@ -379,26 +258,17 @@ function CategoriesBlock({
                 key={row.id}
                 cells={[
                   isEditing ? (
-                    <InlineInput
-                      value={draft.name}
-                      onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
-                    />
+                    <InlineInput value={editDraft.name} onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))} />
                   ) : (
                     <span className="font-medium">{row.name}</span>
                   ),
                   isEditing ? (
-                    <InlineInput
-                      value={draft.icon}
-                      onChange={(v) => setDraft((p) => ({ ...p, icon: v }))}
-                    />
+                    <InlineInput value={editDraft.icon} onChange={(v) => setEditDraft((p) => ({ ...p, icon: v }))} />
                   ) : (
                     row.icon || "—"
                   ),
                   isEditing ? (
-                    <InlineInput
-                      value={draft.color}
-                      onChange={(v) => setDraft((p) => ({ ...p, color: v }))}
-                    />
+                    <InlineInput value={editDraft.color} onChange={(v) => setEditDraft((p) => ({ ...p, color: v }))} />
                   ) : (
                     row.color || "—"
                   ),
@@ -406,26 +276,20 @@ function CategoriesBlock({
                 actions={
                   isEditing ? (
                     <>
-                      <ActionButton
-                        onClick={() => setEditId(null)}
-                        text="Отмена"
-                        variant="ghost"
-                      />
-                      <ActionButton
-                        onClick={() => updateCategory(row.id, draft)}
-                        text={
-                          mutatingId === row.id ? "Сохраняем..." : "Сохранить"
-                        }
+                      <InlineButton onClick={() => setEditId(null)} text="Отмена" variant="ghost" />
+                      <InlineButton
+                        onClick={() => updateCategory(row.id)}
+                        text={mutatingId === row.id ? "Сохраняем..." : "Сохранить"}
                         disabled={mutatingId === row.id}
                         variant="primary"
                       />
                     </>
                   ) : (
                     <>
-                      <ActionButton
+                      <InlineButton
                         onClick={() => {
                           setEditId(row.id);
-                          setDraft({
+                          setEditDraft({
                             name: row.name,
                             icon: row.icon || "",
                             color: row.color || "",
@@ -433,8 +297,8 @@ function CategoriesBlock({
                         }}
                         text="Изменить"
                       />
-                      <ActionButton
-                        onClick={() => removeCategory(row.id)}
+                      <InlineButton
+                        onClick={() => setConfirmDeleteId(row.id)}
                         text={mutatingId === row.id ? "..." : "Удалить"}
                         disabled={mutatingId === row.id}
                         variant="danger"
@@ -447,6 +311,23 @@ function CategoriesBlock({
           })}
         />
       </div>
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Удалить категорию?"
+        description="Категория будет удалена безвозвратно."
+        confirmText="Удалить"
+        cancelText="Отмена"
+        loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            const id = confirmDeleteId;
+            setConfirmDeleteId(null);
+            removeCategory(id);
+          }
+        }}
+      />
+      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
     </SectionShell>
   );
 }
@@ -463,23 +344,20 @@ function PaymentTypesBlock({
 }: {
   workspaceId: string;
   data: NormalizedPaymentType[];
-  status: Status;
+  status: SectionStatus;
   currencies: NormalizedCurrency[];
-  currencyStatus: Status;
+  currencyStatus: SectionStatus;
   onReload: () => Promise<void>;
   onReloadCurrencies: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
-  const [draft, setDraft] = useState<PaymentTypeDraft>({
-    name: "",
-    icon: "",
-    defaultCurrencyId: "",
-  });
+  const [draft, setDraft] = useState<PaymentTypeDraft>({ name: "", icon: "", defaultCurrencyId: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const reset = () => setDraft({ name: "", icon: "", defaultCurrencyId: "" });
+  const currencyOptions = currencies.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }));
 
   async function createPaymentType() {
     if (!draft.name.trim()) {
@@ -495,15 +373,13 @@ function PaymentTypesBlock({
           workspace_id: Number(workspaceId),
           name: draft.name.trim(),
           icon: draft.icon.trim() || null,
-          default_currency_id: draft.defaultCurrencyId
-            ? Number(draft.defaultCurrencyId)
-            : null,
+          default_currency_id: draft.defaultCurrencyId ? Number(draft.defaultCurrencyId) : null,
         }),
       });
-      reset();
+      setDraft({ name: "", icon: "", defaultCurrencyId: "" });
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось создать тип платежа");
+      setActionError(e?.message || "Failed to create payment type");
     } finally {
       setMutatingId(null);
     }
@@ -522,15 +398,13 @@ function PaymentTypesBlock({
         body: JSON.stringify({
           name: input.name.trim(),
           icon: input.icon.trim() || null,
-          default_currency_id: input.defaultCurrencyId
-            ? Number(input.defaultCurrencyId)
-            : null,
+          default_currency_id: input.defaultCurrencyId ? Number(input.defaultCurrencyId) : null,
         }),
       });
       setEditId(null);
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось обновить тип платежа");
+      setActionError(e?.message || "Failed to update payment type");
     } finally {
       setMutatingId(null);
     }
@@ -539,17 +413,13 @@ function PaymentTypesBlock({
   async function removePaymentType(id: string) {
     const row = data.find((c) => c.id === id);
     if (!row) return;
-    const ok = window.confirm(`Удалить тип платежа "${row.name}"?`);
-    if (!ok) return;
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/payment_types/${id}`, {
-        method: "DELETE",
-      });
+      await apiFetch(`/api/dictionaries/payment_types/${id}`, { method: "DELETE" });
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось удалить тип платежа");
+      setActionError(e?.message || "Failed to delete payment type");
     } finally {
       setMutatingId(null);
     }
@@ -577,61 +447,39 @@ function PaymentTypesBlock({
             </button>
           </div>
           <div className="mt-3 space-y-3">
-            <LabeledInput
+            <LabeledField
               label="Название"
-              placeholder="Карта, Наличные..."
               value={draft.name}
               onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
+              placeholder="Карта, Наличные..."
             />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <LabeledInput
+              <LabeledField
                 label="Иконка"
-                placeholder="emoji или icon name"
                 value={draft.icon}
                 onChange={(v) => setDraft((p) => ({ ...p, icon: v }))}
+                placeholder="emoji или icon name"
               />
-              <div>
-                <label className="mb-1 block text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">
-                  Валюта по умолчанию
-                </label>
-                <select
-                  value={draft.defaultCurrencyId}
-                  onChange={(e) =>
-                    setDraft((p) => ({
-                      ...p,
-                      defaultCurrencyId: e.target.value,
-                    }))
-                  }
-                  className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
-                >
-                  <option value="">Не выбрана</option>
-                  {currencies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code} — {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Валюта по умолчанию"
+                options={[{ value: "", label: "Не выбрана" }, ...currencyOptions]}
+                value={draft.defaultCurrencyId}
+                onChange={(val) => setDraft((p) => ({ ...p, defaultCurrencyId: val }))}
+              />
             </div>
-            {actionError && (
-              <p className="text-sm text-red-600">{actionError}</p>
-            )}
+            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={reset}
-                className="h-9 rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--bg))]"
-              >
-                Сбросить
-              </button>
-              <button
-                type="button"
-                onClick={createPaymentType}
+              <InlineButton
+                text="Сбросить"
+                variant="ghost"
+                onClick={() => setDraft({ name: "", icon: "", defaultCurrencyId: "" })}
+              />
+              <InlineButton
+                text={mutatingId === "new" ? "Сохраняем..." : "Добавить"}
+                variant="primary"
                 disabled={mutatingId === "new"}
-                className="h-9 rounded-xl bg-[hsl(var(--color-primary))] px-3 text-sm text-white disabled:opacity-60"
-              >
-                {mutatingId === "new" ? "Сохраняем..." : "Добавить"}
-              </button>
+                onClick={createPaymentType}
+              />
             </div>
           </div>
         </div>
@@ -643,95 +491,75 @@ function PaymentTypesBlock({
           rows={data.map((row) => {
             const isEditing = editId === row.id;
             const currentCurrency = row.defaultCurrencyId
-              ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code ||
-                row.defaultCurrencyId
+              ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code || row.defaultCurrencyId
               : "—";
+            if (isEditing) {
+              return (
+                <EditPaymentTypeRow
+                  key={row.id}
+                  row={row}
+                  currencies={currencies}
+                  savingId={mutatingId}
+                  onCancel={() => setEditId(null)}
+                  onDelete={() => setConfirmDeleteId(row.id)}
+                  onSave={(draftUpdate) => updatePaymentType(row.id, draftUpdate)}
+                />
+              );
+            }
+
             return (
               <DictionaryRow
                 key={row.id}
                 cells={[
-                  isEditing ? (
-                    <InlineInput
-                      value={draft.name}
-                      onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
-                    />
-                  ) : (
-                    <span className="font-medium">{row.name}</span>
-                  ),
-                  isEditing ? (
-                    <InlineInput
-                      value={draft.icon}
-                      onChange={(v) => setDraft((p) => ({ ...p, icon: v }))}
-                    />
-                  ) : (
-                    row.icon || "—"
-                  ),
-                  isEditing ? (
-                    <select
-                      value={draft.defaultCurrencyId}
-                      onChange={(e) =>
-                        setDraft((p) => ({
-                          ...p,
-                          defaultCurrencyId: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg border border-[hsl(var(--border))] bg-transparent px-2 py-1 text-sm"
-                    >
-                      <option value="">Не выбрана</option>
-                      {currencies.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.code} — {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    currentCurrency
-                  ),
+                  <span className="font-medium" key="name">
+                    {row.name}
+                  </span>,
+                  row.icon || "—",
+                  currentCurrency,
                 ]}
                 actions={
-                  isEditing ? (
-                    <>
-                      <ActionButton
-                        onClick={() => setEditId(null)}
-                        text="Отмена"
-                        variant="ghost"
-                      />
-                      <ActionButton
-                        onClick={() => updatePaymentType(row.id, draft)}
-                        text={
-                          mutatingId === row.id ? "Сохраняем..." : "Сохранить"
-                        }
-                        disabled={mutatingId === row.id}
-                        variant="primary"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <ActionButton
-                        onClick={() => {
-                          setEditId(row.id);
-                          setDraft({
-                            name: row.name,
-                            icon: row.icon || "",
-                            defaultCurrencyId: row.defaultCurrencyId || "",
-                          });
-                        }}
-                        text="Изменить"
-                      />
-                      <ActionButton
-                        onClick={() => removePaymentType(row.id)}
-                        text={mutatingId === row.id ? "..." : "Удалить"}
-                        disabled={mutatingId === row.id}
-                        variant="danger"
-                      />
-                    </>
-                  )
+                  <>
+                    <InlineButton
+                      onClick={() => {
+                        setEditId(row.id);
+                        setDraft({
+                          name: row.name,
+                          icon: row.icon || "",
+                          defaultCurrencyId: row.defaultCurrencyId || "",
+                        });
+                      }}
+                      text="Изменить"
+                    />
+                    <InlineButton
+                      onClick={() => setConfirmDeleteId(row.id)}
+                      text={mutatingId === row.id ? "..." : "Удалить"}
+                      disabled={mutatingId === row.id}
+                      variant="danger"
+                    />
+                  </>
                 }
               />
             );
           })}
         />
       </div>
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Удалить тип платежа?"
+        description="Тип платежа будет удален безвозвратно."
+        confirmText="Удалить"
+        cancelText="Отмена"
+        loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            const id = confirmDeleteId;
+            setConfirmDeleteId(null);
+            removePaymentType(id);
+          }
+        }}
+      />
+      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
     </SectionShell>
   );
 }
@@ -743,48 +571,39 @@ function CurrenciesBlock({
   apiFetch,
 }: {
   data: NormalizedCurrency[];
-  status: Status;
+  status: SectionStatus;
   onReload: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
-  const [draft, setDraft] = useState<CurrencyDraft>({
-    code: "",
-    name: "",
-    symbol: "",
-  });
+  const [draft, setDraft] = useState<CurrencyDraft>({ code: "", name: "", symbol: "" });
+  const [editDraft, setEditDraft] = useState<CurrencyDraft>({ code: "", name: "", symbol: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const reset = () => setDraft({ code: "", name: "", symbol: "" });
-
-  async function createCurrency() {
-    if (!draft.code.trim() || !draft.name.trim() || !draft.symbol.trim()) {
-      setActionError("Код, название и символ обязательны");
-      return;
-    }
-    setActionError(null);
+  async function createCurrency(d: CurrencyDraft) {
     setMutatingId("new");
     try {
       await apiFetch("/api/dictionaries/currencies", {
         method: "POST",
         body: JSON.stringify({
-          code: draft.code.trim().toUpperCase(),
-          name: draft.name.trim(),
-          symbol: draft.symbol.trim(),
+          code: d.code.trim().toUpperCase(),
+          name: d.name.trim(),
+          symbol: d.symbol.trim(),
         }),
       });
-      reset();
+      setDraft({ code: "", name: "", symbol: "" });
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось создать валюту");
+      setActionError(e?.message || "Failed to create currency");
     } finally {
       setMutatingId(null);
     }
   }
 
-  async function updateCurrency(id: string, input: CurrencyDraft) {
-    if (!input.code.trim() || !input.name.trim() || !input.symbol.trim()) {
+  async function updateCurrency(id: string) {
+    if (!editDraft.code.trim() || !editDraft.name.trim() || !editDraft.symbol.trim()) {
       setActionError("Все поля обязательны");
       return;
     }
@@ -794,15 +613,15 @@ function CurrenciesBlock({
       await apiFetch(`/api/dictionaries/currencies/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          code: input.code.trim().toUpperCase(),
-          name: input.name.trim(),
-          symbol: input.symbol.trim(),
+          code: editDraft.code.trim().toUpperCase(),
+          name: editDraft.name.trim(),
+          symbol: editDraft.symbol.trim(),
         }),
       });
       setEditId(null);
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось обновить валюту");
+      setActionError(e?.message || "Failed to update currency");
     } finally {
       setMutatingId(null);
     }
@@ -811,17 +630,13 @@ function CurrenciesBlock({
   async function removeCurrency(id: string) {
     const row = data.find((c) => c.id === id);
     if (!row) return;
-    const ok = window.confirm(`Удалить валюту "${row.code}"?`);
-    if (!ok) return;
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/currencies/${id}`, {
-        method: "DELETE",
-      });
+      await apiFetch(`/api/dictionaries/currencies/${id}`, { method: "DELETE" });
       await onReload();
     } catch (e: any) {
-      setActionError(e?.message || "Не удалось удалить валюту");
+      setActionError(e?.message || "Failed to delete currency");
     } finally {
       setMutatingId(null);
     }
@@ -830,57 +645,13 @@ function CurrenciesBlock({
   return (
     <SectionShell
       title="Валюты"
-      description="Глобальный справочник, используемый во всех рабочих пространствах."
+      description="Глобальный справочник валют, используется везде."
       count={data.length}
       status={status}
       onReload={onReload}
     >
       <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
-        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-          <h3 className="text-sm font-semibold">Добавить валюту</h3>
-          <div className="mt-3 space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <LabeledInput
-                label="Код"
-                placeholder="USD"
-                value={draft.code}
-                onChange={(v) => setDraft((p) => ({ ...p, code: v }))}
-              />
-              <LabeledInput
-                label="Символ"
-                placeholder="$"
-                value={draft.symbol}
-                onChange={(v) => setDraft((p) => ({ ...p, symbol: v }))}
-              />
-            </div>
-            <LabeledInput
-              label="Название"
-              placeholder="Доллар США"
-              value={draft.name}
-              onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
-            />
-            {actionError && (
-              <p className="text-sm text-red-600">{actionError}</p>
-            )}
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={reset}
-                className="h-9 rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--bg))]"
-              >
-                Сбросить
-              </button>
-              <button
-                type="button"
-                onClick={createCurrency}
-                disabled={mutatingId === "new"}
-                className="h-9 rounded-xl bg-[hsl(var(--color-primary))] px-3 text-sm text-white disabled:opacity-60"
-              >
-                {mutatingId === "new" ? "Сохраняем..." : "Добавить"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AddCurrencyForm onSubmit={createCurrency} />
 
         <DictionaryTable
           columns={["Код", "Название", "Символ"]}
@@ -893,26 +664,17 @@ function CurrenciesBlock({
                 key={row.id}
                 cells={[
                   isEditing ? (
-                    <InlineInput
-                      value={draft.code}
-                      onChange={(v) => setDraft((p) => ({ ...p, code: v }))}
-                    />
+                    <InlineInput value={editDraft.code} onChange={(v) => setEditDraft((p) => ({ ...p, code: v }))} />
                   ) : (
                     <span className="font-medium">{row.code}</span>
                   ),
                   isEditing ? (
-                    <InlineInput
-                      value={draft.name}
-                      onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
-                    />
+                    <InlineInput value={editDraft.name} onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))} />
                   ) : (
                     row.name
                   ),
                   isEditing ? (
-                    <InlineInput
-                      value={draft.symbol}
-                      onChange={(v) => setDraft((p) => ({ ...p, symbol: v }))}
-                    />
+                    <InlineInput value={editDraft.symbol} onChange={(v) => setEditDraft((p) => ({ ...p, symbol: v }))} />
                   ) : (
                     row.symbol
                   ),
@@ -920,35 +682,25 @@ function CurrenciesBlock({
                 actions={
                   isEditing ? (
                     <>
-                      <ActionButton
-                        onClick={() => setEditId(null)}
-                        text="Отмена"
-                        variant="ghost"
-                      />
-                      <ActionButton
-                        onClick={() => updateCurrency(row.id, draft)}
-                        text={
-                          mutatingId === row.id ? "Сохраняем..." : "Сохранить"
-                        }
+                      <InlineButton onClick={() => setEditId(null)} text="Отмена" variant="ghost" />
+                      <InlineButton
+                        onClick={() => updateCurrency(row.id)}
+                        text={mutatingId === row.id ? "Сохраняем..." : "Сохранить"}
                         disabled={mutatingId === row.id}
                         variant="primary"
                       />
                     </>
                   ) : (
                     <>
-                      <ActionButton
+                      <InlineButton
                         onClick={() => {
                           setEditId(row.id);
-                          setDraft({
-                            code: row.code,
-                            name: row.name,
-                            symbol: row.symbol,
-                          });
+                          setEditDraft({ code: row.code, name: row.name, symbol: row.symbol });
                         }}
                         text="Изменить"
                       />
-                      <ActionButton
-                        onClick={() => removeCurrency(row.id)}
+                      <InlineButton
+                        onClick={() => setConfirmDeleteId(row.id)}
                         text={mutatingId === row.id ? "..." : "Удалить"}
                         disabled={mutatingId === row.id}
                         variant="danger"
@@ -961,81 +713,28 @@ function CurrenciesBlock({
           })}
         />
       </div>
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Удалить валюту?"
+        description="Валюта будет удалена безвозвратно."
+        confirmText="Удалить"
+        cancelText="Отмена"
+        loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            const id = confirmDeleteId;
+            setConfirmDeleteId(null);
+            removeCurrency(id);
+          }
+        }}
+      />
+      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
     </SectionShell>
   );
 }
 
-function DictionaryTable({
-  columns,
-  rows,
-  loading,
-  emptyText,
-}: {
-  columns: string[];
-  rows: React.ReactNode[];
-  loading: boolean;
-  emptyText: string;
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))]">
-      <table className="w-full text-sm">
-        <thead className="bg-[hsl(var(--card))]">
-          <tr>
-            {columns.map((col) => (
-              <th key={col} className="px-4 py-2 text-left">
-                {col}
-              </th>
-            ))}
-            <th className="px-4 py-2 text-right">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading && (
-            <tr className="border-t border-[hsl(var(--border))]">
-              <td className="px-4 py-3" colSpan={columns.length + 1}>
-                Загрузка...
-              </td>
-            </tr>
-          )}
-          {!loading && rows.length === 0 && (
-            <tr className="border-t border-[hsl(var(--border))]">
-              <td
-                className="px-4 py-3 text-[hsl(var(--fg-muted))]"
-                colSpan={columns.length + 1}
-              >
-                {emptyText}
-              </td>
-            </tr>
-          )}
-          {!loading && rows}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function DictionaryRow({
-  cells,
-  actions,
-}: {
-  cells: React.ReactNode[];
-  actions: React.ReactNode;
-}) {
-  return (
-    <tr className="border-t border-[hsl(var(--border))]">
-      {cells.map((cell, idx) => (
-        <td key={idx} className="px-4 py-2 align-middle text-[hsl(var(--fg))]">
-          {cell}
-        </td>
-      ))}
-      <td className="px-4 py-2 text-right">
-        <div className="flex justify-end gap-2 text-xs">{actions}</div>
-      </td>
-    </tr>
-  );
-}
-
-function LabeledInput({
+function LabeledField({
   label,
   value,
   onChange,
@@ -1048,62 +747,13 @@ function LabeledInput({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">
-        {label}
-      </label>
+      <label className="mb-1 block text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">{label}</label>
       <input
-        type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))]"
       />
     </div>
-  );
-}
-
-function InlineInput({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-[hsl(var(--border))] bg-transparent px-2 py-1 text-sm"
-    />
-  );
-}
-
-function ActionButton({
-  text,
-  onClick,
-  variant = "ghost",
-  disabled,
-}: {
-  text: string;
-  onClick: () => void;
-  variant?: "primary" | "danger" | "ghost";
-  disabled?: boolean;
-}) {
-  const classes =
-    variant === "primary"
-      ? "bg-[hsl(var(--color-primary))] text-white"
-      : variant === "danger"
-      ? "border border-red-200 text-red-600 hover:bg-red-50"
-      : "border border-[hsl(var(--border))]";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`rounded-lg px-3 py-1 ${classes} disabled:opacity-60`}
-    >
-      {text}
-    </button>
   );
 }
