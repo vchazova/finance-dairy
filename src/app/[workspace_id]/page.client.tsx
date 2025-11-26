@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/providers/AuthProvider";
@@ -157,13 +158,12 @@ export default function WorkspaceClientPage({
             Workspace {workspaceId}
           </h1>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => alert("Settings not implemented yet")}
-              className="h-9 rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]"
+            <Link
+              href={`/${workspaceId}/settings`}
+              className="inline-flex h-9 items-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]"
             >
               Manage Settings
-            </button>
+            </Link>
             <button
               type="button"
               onClick={() => setOpen(true)}
