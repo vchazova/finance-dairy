@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/providers/AuthProvider";
 import { useApiFetch } from "@/lib/api/client";
@@ -26,6 +27,7 @@ import {
   type SectionStatus,
 } from "@/components/settings/DictionaryUI";
 import { ConfirmDialog } from "@/components/settings/ConfirmDialog";
+import { queryKeys } from "@/lib/queryKeys";
 
 export default function WorkspaceSettingsClient({
   workspaceId,
@@ -40,67 +42,54 @@ export default function WorkspaceSettingsClient({
 }) {
   const { session } = useAuth();
   const apiFetch = useApiFetch();
-  const workspaceIdNum = useMemo(() => Number(workspaceId), [workspaceId]);
+  const queryClient = useQueryClient();
 
-  const [categories, setCategories] = useState<NormalizedCategory[]>(initialCategories);
-  const [paymentTypes, setPaymentTypes] = useState<NormalizedPaymentType[]>(initialPaymentTypes);
-  const [currencies, setCurrencies] = useState<NormalizedCurrency[]>(initialCurrencies);
-
-  const [categoryStatus, setCategoryStatus] = useState<SectionStatus>({ loading: false, error: null });
-  const [paymentTypeStatus, setPaymentTypeStatus] = useState<SectionStatus>({ loading: false, error: null });
-  const [currencyStatus, setCurrencyStatus] = useState<SectionStatus>({ loading: false, error: null });
-
-  // Avoid 401 on hard load: wait for session before fetching.
-  useEffect(() => {
-    if (!session?.access_token) return;
-    if (initialCategories.length === 0) void reloadCategories();
-    if (initialPaymentTypes.length === 0) void reloadPaymentTypes();
-    if (initialCurrencies.length === 0) void reloadCurrencies();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    session?.access_token,
-    initialCategories.length,
-    initialPaymentTypes.length,
-    initialCurrencies.length,
-  ]);
-
-  async function reloadCategories() {
-    if (!session?.access_token) return;
-    if (!workspaceIdNum || Number.isNaN(workspaceIdNum)) return;
-    setCategoryStatus({ loading: true, error: null });
-    try {
+  const categoriesQuery = useQuery({
+    queryKey: queryKeys.categories(workspaceId),
+    queryFn: async () => {
       const rows = await apiFetch<any[]>(`/api/dictionaries/categories?workspaceId=${workspaceId}`);
-      setCategories(rows.map((row) => normalizeCategoryRow(row)));
-      setCategoryStatus({ loading: false, error: null });
-    } catch (e: any) {
-      setCategoryStatus({ loading: false, error: e?.message || "Failed to load categories" });
-    }
-  }
+      return rows.map((row) => normalizeCategoryRow(row));
+    },
+    initialData: initialCategories,
+    enabled: !!session?.access_token,
+  });
 
-  async function reloadPaymentTypes() {
-    if (!session?.access_token) return;
-    if (!workspaceIdNum || Number.isNaN(workspaceIdNum)) return;
-    setPaymentTypeStatus({ loading: true, error: null });
-    try {
+  const paymentTypesQuery = useQuery({
+    queryKey: queryKeys.paymentTypes(workspaceId),
+    queryFn: async () => {
       const rows = await apiFetch<any[]>(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`);
-      setPaymentTypes(rows.map((row) => normalizePaymentTypeRow(row)));
-      setPaymentTypeStatus({ loading: false, error: null });
-    } catch (e: any) {
-      setPaymentTypeStatus({ loading: false, error: e?.message || "Failed to load payment types" });
-    }
-  }
+      return rows.map((row) => normalizePaymentTypeRow(row));
+    },
+    initialData: initialPaymentTypes,
+    enabled: !!session?.access_token,
+  });
 
-  async function reloadCurrencies() {
-    if (!session?.access_token) return;
-    setCurrencyStatus({ loading: true, error: null });
-    try {
+  const currenciesQuery = useQuery({
+    queryKey: queryKeys.currencies,
+    queryFn: async () => {
       const rows = await apiFetch<any[]>(`/api/dictionaries/currencies`);
-      setCurrencies(rows.map((row) => normalizeCurrencyRow(row)));
-      setCurrencyStatus({ loading: false, error: null });
-    } catch (e: any) {
-      setCurrencyStatus({ loading: false, error: e?.message || "Failed to load currencies" });
-    }
-  }
+      return rows.map((row) => normalizeCurrencyRow(row));
+    },
+    initialData: initialCurrencies,
+    enabled: !!session?.access_token,
+  });
+
+  const categoryStatus: SectionStatus = {
+    loading: categoriesQuery.isPending || categoriesQuery.isRefetching,
+    error: (categoriesQuery.error as Error | null)?.message ?? null,
+  };
+  const paymentTypeStatus: SectionStatus = {
+    loading: paymentTypesQuery.isPending || paymentTypesQuery.isRefetching,
+    error: (paymentTypesQuery.error as Error | null)?.message ?? null,
+  };
+  const currencyStatus: SectionStatus = {
+    loading: currenciesQuery.isPending || currenciesQuery.isRefetching,
+    error: (currenciesQuery.error as Error | null)?.message ?? null,
+  };
+
+  const reloadCategories = () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) });
+  const reloadPaymentTypes = () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) });
+  const reloadCurrencies = () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies });
 
   return (
     <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
@@ -118,8 +107,7 @@ export default function WorkspaceSettingsClient({
             <div className="flex items-center gap-2">
               <Link
                 href={`/${workspaceId}`}
-                className="inline-flex h-9 items-center justify-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]"
-              >
+                className="inline-flex h-9 items-center justify-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]">
                 Back
               </Link>
               <span className="rounded-full border border-[hsl(var(--border))] px-3 py-1 text-xs text-[hsl(var(--fg-muted))]">
@@ -131,7 +119,7 @@ export default function WorkspaceSettingsClient({
 
         <CategoriesBlock
           workspaceId={workspaceId}
-          data={categories}
+          data={categoriesQuery.data ?? []}
           status={categoryStatus}
           onReload={reloadCategories}
           apiFetch={apiFetch}
@@ -139,9 +127,9 @@ export default function WorkspaceSettingsClient({
 
         <PaymentTypesBlock
           workspaceId={workspaceId}
-          data={paymentTypes}
+          data={paymentTypesQuery.data ?? []}
           status={paymentTypeStatus}
-          currencies={currencies}
+          currencies={currenciesQuery.data ?? []}
           currencyStatus={currencyStatus}
           onReload={reloadPaymentTypes}
           onReloadCurrencies={reloadCurrencies}
@@ -149,7 +137,7 @@ export default function WorkspaceSettingsClient({
         />
 
         <CurrenciesBlock
-          data={currencies}
+          data={currenciesQuery.data ?? []}
           status={currencyStatus}
           onReload={reloadCurrencies}
           apiFetch={apiFetch}
@@ -172,16 +160,16 @@ function CategoriesBlock({
   onReload: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
+  const queryClient = useQueryClient();
   const [editDraft, setEditDraft] = useState<CategoryDraft>({ name: "", icon: "", color: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  async function createCategory(draft: CategoryDraft) {
-    setMutatingId("new");
-    try {
-      await apiFetch("/api/dictionaries/categories", {
+  const createCategoryMutation = useMutation({
+    mutationFn: (draft: CategoryDraft) =>
+      apiFetch("/api/dictionaries/categories", {
         method: "POST",
         body: JSON.stringify({
           workspace_id: Number(workspaceId),
@@ -189,8 +177,34 @@ function CategoriesBlock({
           icon: draft.icon || null,
           color: draft.color || null,
         }),
-      });
-      await onReload();
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) }),
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, draft }: { id: string; draft: CategoryDraft }) =>
+      apiFetch(`/api/dictionaries/categories/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: draft.name.trim(),
+          icon: draft.icon.trim() || null,
+          color: draft.color.trim() || null,
+        }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) }),
+  });
+
+  const removeCategoryMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/dictionaries/categories/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories(workspaceId) }),
+  });
+
+  async function createCategory(draft: CategoryDraft) {
+    setMutatingId("new");
+    try {
+      await createCategoryMutation.mutateAsync(draft);
+    } catch (e: any) {
+      setActionError(e?.message || "Failed to create category");
     } finally {
       setMutatingId(null);
     }
@@ -198,22 +212,14 @@ function CategoriesBlock({
 
   async function updateCategory(id: string) {
     if (!editDraft.name.trim()) {
-      setActionError("Название обязательно");
+      setActionError("Имя категории обязательно");
       return;
     }
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/categories/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: editDraft.name.trim(),
-          icon: editDraft.icon.trim() || null,
-          color: editDraft.color.trim() || null,
-        }),
-      });
+      await updateCategoryMutation.mutateAsync({ id, draft: editDraft });
       setEditId(null);
-      await onReload();
     } catch (e: any) {
       setActionError(e?.message || "Failed to update category");
     } finally {
@@ -227,8 +233,7 @@ function CategoriesBlock({
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/categories/${id}`, { method: "DELETE" });
-      await onReload();
+      await removeCategoryMutation.mutateAsync(id);
     } catch (e: any) {
       setActionError(e?.message || "Failed to delete category");
     } finally {
@@ -239,7 +244,7 @@ function CategoriesBlock({
   return (
     <SectionShell
       title="Категории"
-      description="Используются для группировки расходов и доходов."
+      description="Добавляйте и редактируйте категории расходов и доходов."
       count={data.length}
       status={status}
       onReload={onReload}
@@ -250,7 +255,7 @@ function CategoriesBlock({
         <DictionaryTable
           columns={["Название", "Иконка", "Цвет"]}
           loading={status.loading}
-          emptyText="Категории пока не созданы."
+          emptyText="Категории пока не добавлены."
           rows={data.map((row) => {
             const isEditing = editId === row.id;
             return (
@@ -279,7 +284,7 @@ function CategoriesBlock({
                       <InlineButton onClick={() => setEditId(null)} text="Отмена" variant="ghost" />
                       <InlineButton
                         onClick={() => updateCategory(row.id)}
-                        text={mutatingId === row.id ? "Сохраняем..." : "Сохранить"}
+                        text={mutatingId === row.id ? "Сохранение..." : "Сохранить"}
                         disabled={mutatingId === row.id}
                         variant="primary"
                       />
@@ -314,7 +319,7 @@ function CategoriesBlock({
       <ConfirmDialog
         open={!!confirmDeleteId}
         title="Удалить категорию?"
-        description="Категория будет удалена безвозвратно."
+        description="Категория и связанные данные могут быть недоступны после удаления."
         confirmText="Удалить"
         cancelText="Отмена"
         loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
@@ -351,33 +356,57 @@ function PaymentTypesBlock({
   onReloadCurrencies: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
+  const queryClient = useQueryClient();
   const [draft, setDraft] = useState<PaymentTypeDraft>({ name: "", icon: "", defaultCurrencyId: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const currencyOptions = currencies.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }));
+  const currencyOptions = currencies.map((c) => ({ value: c.id, label: `${c.code} • ${c.name}` }));
+
+  const createPaymentTypeMutation = useMutation({
+    mutationFn: (input: PaymentTypeDraft) =>
+      apiFetch("/api/dictionaries/payment_types", {
+        method: "POST",
+        body: JSON.stringify({
+          workspace_id: Number(workspaceId),
+          name: input.name.trim(),
+          icon: input.icon.trim() || null,
+          default_currency_id: input.defaultCurrencyId ? Number(input.defaultCurrencyId) : null,
+        }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) }),
+  });
+
+  const updatePaymentTypeMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: PaymentTypeDraft }) =>
+      apiFetch(`/api/dictionaries/payment_types/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: input.name.trim(),
+          icon: input.icon.trim() || null,
+          default_currency_id: input.defaultCurrencyId ? Number(input.defaultCurrencyId) : null,
+        }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) }),
+  });
+
+  const removePaymentTypeMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/dictionaries/payment_types/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.paymentTypes(workspaceId) }),
+  });
 
   async function createPaymentType() {
     if (!draft.name.trim()) {
-      setActionError("Название обязательно");
+      setActionError("Имя платежа обязательно");
       return;
     }
     setActionError(null);
     setMutatingId("new");
     try {
-      await apiFetch("/api/dictionaries/payment_types", {
-        method: "POST",
-        body: JSON.stringify({
-          workspace_id: Number(workspaceId),
-          name: draft.name.trim(),
-          icon: draft.icon.trim() || null,
-          default_currency_id: draft.defaultCurrencyId ? Number(draft.defaultCurrencyId) : null,
-        }),
-      });
+      await createPaymentTypeMutation.mutateAsync(draft);
       setDraft({ name: "", icon: "", defaultCurrencyId: "" });
-      await onReload();
     } catch (e: any) {
       setActionError(e?.message || "Failed to create payment type");
     } finally {
@@ -387,22 +416,14 @@ function PaymentTypesBlock({
 
   async function updatePaymentType(id: string, input: PaymentTypeDraft) {
     if (!input.name.trim()) {
-      setActionError("Название обязательно");
+      setActionError("Имя платежа обязательно");
       return;
     }
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/payment_types/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: input.name.trim(),
-          icon: input.icon.trim() || null,
-          default_currency_id: input.defaultCurrencyId ? Number(input.defaultCurrencyId) : null,
-        }),
-      });
+      await updatePaymentTypeMutation.mutateAsync({ id, input });
       setEditId(null);
-      await onReload();
     } catch (e: any) {
       setActionError(e?.message || "Failed to update payment type");
     } finally {
@@ -416,8 +437,7 @@ function PaymentTypesBlock({
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/payment_types/${id}`, { method: "DELETE" });
-      await onReload();
+      await removePaymentTypeMutation.mutateAsync(id);
     } catch (e: any) {
       setActionError(e?.message || "Failed to delete payment type");
     } finally {
@@ -427,8 +447,8 @@ function PaymentTypesBlock({
 
   return (
     <SectionShell
-      title="Типы платежей"
-      description="Карты, наличные, счета — все способы оплаты вашего пространства."
+      title="Способы оплаты"
+      description="Настройте наличные, карты, кошельки и их валюту по умолчанию."
       count={data.length}
       status={status}
       onReload={onReload}
@@ -436,14 +456,14 @@ function PaymentTypesBlock({
       <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
         <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Добавить тип</h3>
+            <h3 className="text-sm font-semibold">Добавить способ</h3>
             <button
               type="button"
               onClick={() => onReloadCurrencies()}
               disabled={currencyStatus.loading}
               className="text-xs text-[hsl(var(--fg-muted))] underline-offset-4 hover:underline disabled:opacity-60"
             >
-              {currencyStatus.loading ? "Обновляем..." : "Обновить валюты"}
+              {currencyStatus.loading ? "Обновление..." : "Обновить валюты"}
             </button>
           </div>
           <div className="mt-3 space-y-3">
@@ -451,7 +471,7 @@ function PaymentTypesBlock({
               label="Название"
               value={draft.name}
               onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
-              placeholder="Карта, Наличные..."
+              placeholder="Карта, наличные..."
             />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <LabeledField
@@ -462,7 +482,7 @@ function PaymentTypesBlock({
               />
               <Select
                 label="Валюта по умолчанию"
-                options={[{ value: "", label: "Не выбрана" }, ...currencyOptions]}
+                options={[{ value: "", label: "Не назначать" }, ...currencyOptions]}
                 value={draft.defaultCurrencyId}
                 onChange={(val) => setDraft((p) => ({ ...p, defaultCurrencyId: val }))}
               />
@@ -475,7 +495,7 @@ function PaymentTypesBlock({
                 onClick={() => setDraft({ name: "", icon: "", defaultCurrencyId: "" })}
               />
               <InlineButton
-                text={mutatingId === "new" ? "Сохраняем..." : "Добавить"}
+                text={mutatingId === "new" ? "Создание..." : "Добавить"}
                 variant="primary"
                 disabled={mutatingId === "new"}
                 onClick={createPaymentType}
@@ -487,7 +507,7 @@ function PaymentTypesBlock({
         <DictionaryTable
           columns={["Название", "Иконка", "Валюта по умолчанию"]}
           loading={status.loading}
-          emptyText="Нет типов платежей."
+          emptyText="Платежные методы пока не добавлены."
           rows={data.map((row) => {
             const isEditing = editId === row.id;
             const currentCurrency = row.defaultCurrencyId
@@ -545,8 +565,8 @@ function PaymentTypesBlock({
       </div>
       <ConfirmDialog
         open={!!confirmDeleteId}
-        title="Удалить тип платежа?"
-        description="Тип платежа будет удален безвозвратно."
+        title="Удалить способ оплаты?"
+        description="Будут убраны записи об этом способе оплаты."
         confirmText="Удалить"
         cancelText="Отмена"
         loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
@@ -575,6 +595,7 @@ function CurrenciesBlock({
   onReload: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
+  const queryClient = useQueryClient();
   const [draft, setDraft] = useState<CurrencyDraft>({ code: "", name: "", symbol: "" });
   const [editDraft, setEditDraft] = useState<CurrencyDraft>({ code: "", name: "", symbol: "" });
   const [editId, setEditId] = useState<string | null>(null);
@@ -582,19 +603,42 @@ function CurrenciesBlock({
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  async function createCurrency(d: CurrencyDraft) {
-    setMutatingId("new");
-    try {
-      await apiFetch("/api/dictionaries/currencies", {
+  const createCurrencyMutation = useMutation({
+    mutationFn: (d: CurrencyDraft) =>
+      apiFetch("/api/dictionaries/currencies", {
         method: "POST",
         body: JSON.stringify({
           code: d.code.trim().toUpperCase(),
           name: d.name.trim(),
           symbol: d.symbol.trim(),
         }),
-      });
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+  });
+
+  const updateCurrencyMutation = useMutation({
+    mutationFn: ({ id, draft: d }: { id: string; draft: CurrencyDraft }) =>
+      apiFetch(`/api/dictionaries/currencies/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          code: d.code.trim().toUpperCase(),
+          name: d.name.trim(),
+          symbol: d.symbol.trim(),
+        }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+  });
+
+  const removeCurrencyMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/dictionaries/currencies/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+  });
+
+  async function createCurrency(d: CurrencyDraft) {
+    setMutatingId("new");
+    try {
+      await createCurrencyMutation.mutateAsync(d);
       setDraft({ code: "", name: "", symbol: "" });
-      await onReload();
     } catch (e: any) {
       setActionError(e?.message || "Failed to create currency");
     } finally {
@@ -610,16 +654,8 @@ function CurrenciesBlock({
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/currencies/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          code: editDraft.code.trim().toUpperCase(),
-          name: editDraft.name.trim(),
-          symbol: editDraft.symbol.trim(),
-        }),
-      });
+      await updateCurrencyMutation.mutateAsync({ id, draft: editDraft });
       setEditId(null);
-      await onReload();
     } catch (e: any) {
       setActionError(e?.message || "Failed to update currency");
     } finally {
@@ -633,8 +669,7 @@ function CurrenciesBlock({
     setActionError(null);
     setMutatingId(id);
     try {
-      await apiFetch(`/api/dictionaries/currencies/${id}`, { method: "DELETE" });
-      await onReload();
+      await removeCurrencyMutation.mutateAsync(id);
     } catch (e: any) {
       setActionError(e?.message || "Failed to delete currency");
     } finally {
@@ -645,7 +680,7 @@ function CurrenciesBlock({
   return (
     <SectionShell
       title="Валюты"
-      description="Глобальный справочник валют, используется везде."
+      description="Добавляйте национальные валюты, их код и символ."
       count={data.length}
       status={status}
       onReload={onReload}
@@ -656,7 +691,7 @@ function CurrenciesBlock({
         <DictionaryTable
           columns={["Код", "Название", "Символ"]}
           loading={status.loading}
-          emptyText="Валюты не найдены."
+          emptyText="Валюты пока не добавлены."
           rows={data.map((row) => {
             const isEditing = editId === row.id;
             return (
@@ -685,7 +720,7 @@ function CurrenciesBlock({
                       <InlineButton onClick={() => setEditId(null)} text="Отмена" variant="ghost" />
                       <InlineButton
                         onClick={() => updateCurrency(row.id)}
-                        text={mutatingId === row.id ? "Сохраняем..." : "Сохранить"}
+                        text={mutatingId === row.id ? "Сохранение..." : "Сохранить"}
                         disabled={mutatingId === row.id}
                         variant="primary"
                       />
@@ -716,7 +751,7 @@ function CurrenciesBlock({
       <ConfirmDialog
         open={!!confirmDeleteId}
         title="Удалить валюту?"
-        description="Валюта будет удалена безвозвратно."
+        description="Валюта будет недоступна после удаления."
         confirmText="Удалить"
         cancelText="Отмена"
         loading={!!confirmDeleteId && mutatingId === confirmDeleteId}
