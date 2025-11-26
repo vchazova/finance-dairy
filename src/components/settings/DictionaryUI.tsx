@@ -62,36 +62,38 @@ export function DictionaryTable({
   emptyText: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))]">
-      <table className="w-full text-sm">
-        <thead className="bg-[hsl(var(--card))]">
-          <tr>
-            {columns.map((col) => (
-              <th key={col} className="px-4 py-2 text-left">
-                {col}
-              </th>
-            ))}
-            <th className="px-4 py-2 text-right">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading && (
-            <tr className="border-t border-[hsl(var(--border))]">
-              <td className="px-4 py-3" colSpan={columns.length + 1}>
-                Загрузка...
-              </td>
+    <div className="rounded-2xl border border-[hsl(var(--border))]">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="bg-[hsl(var(--card))]">
+            <tr>
+              {columns.map((col) => (
+                <th key={col} className="px-4 py-2 text-left">
+                  {col}
+                </th>
+              ))}
+              <th className="px-4 py-2 text-right">Действия</th>
             </tr>
-          )}
-          {!loading && rows.length === 0 && (
-            <tr className="border-t border-[hsl(var(--border))]">
-              <td className="px-4 py-3 text-[hsl(var(--fg-muted))]" colSpan={columns.length + 1}>
-                {emptyText}
-              </td>
-            </tr>
-          )}
-          {!loading && rows}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr className="border-t border-[hsl(var(--border))]">
+                <td className="px-4 py-3" colSpan={columns.length + 1}>
+                  Загрузка...
+                </td>
+              </tr>
+            )}
+            {!loading && rows.length === 0 && (
+              <tr className="border-t border-[hsl(var(--border))]">
+                <td className="px-4 py-3 text-[hsl(var(--fg-muted))]" colSpan={columns.length + 1}>
+                  {emptyText}
+                </td>
+              </tr>
+            )}
+            {!loading && rows}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
