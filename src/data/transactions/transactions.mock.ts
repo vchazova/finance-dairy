@@ -1,4 +1,4 @@
-import type { TransactionsRepo } from "@/data/transactions/transactions.repo";
+import type { TransactionListFilters, TransactionsRepo } from "@/data/transactions/transactions.repo";
 import type {
   Transaction,
   TransactionInsert,
@@ -8,11 +8,20 @@ import { transactionRowSchema } from "@/entities/transactions";
 import { store } from "@/mocks/store";
 
 export const transactionsRepo: TransactionsRepo = {
-  async list(workspaceId: number | string): Promise<Transaction[]> {
+  async list(workspaceId: number | string, filters?: TransactionListFilters): Promise<Transaction[]> {
     const idNum = typeof workspaceId === "string" ? Number(workspaceId) : workspaceId;
     return store
       .getTransactions()
-      .filter((t) => t.workspace_id === idNum)
+      .filter((t) => {
+        if (t.workspace_id !== idNum) return false;
+        if (filters?.startDate && new Date(t.date as any) < new Date(filters.startDate as any)) return false;
+        if (filters?.endDate && new Date(t.date as any) > new Date(filters.endDate as any)) return false;
+        if (filters?.categoryId !== undefined && t.category_id !== filters.categoryId) return false;
+        if (filters?.paymentTypeId !== undefined && t.payment_type_id !== filters.paymentTypeId) return false;
+        if (filters?.currencyId !== undefined && t.currency_id !== filters.currencyId) return false;
+        if (filters?.isDecrease !== undefined && t.is_decrease !== filters.isDecrease) return false;
+        return true;
+      })
       .map((t) => transactionRowSchema.parse(t));
   },
 

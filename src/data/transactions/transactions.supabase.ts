@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase as defaultClient } from "@/lib/supabase/client";
-import type { TransactionsRepo } from "@/data/transactions/transactions.repo";
+import type { TransactionListFilters, TransactionsRepo } from "@/data/transactions/transactions.repo";
 import type {
   Transaction,
   TransactionInsert,
@@ -21,12 +21,17 @@ export function createTransactionsSupabaseRepo(client?: SupabaseClient): Transac
 
   return {
     // List all transactions for workspace (ordered by date desc).
-    async list(workspaceId: number | string): Promise<Transaction[]> {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("workspace_id", workspaceId)
-        .order("date", { ascending: false });
+    async list(workspaceId: number | string, filters?: TransactionListFilters): Promise<Transaction[]> {
+      let query = supabase.from("transactions").select("*").eq("workspace_id", workspaceId);
+
+      if (filters?.startDate) query = query.gte("date", new Date(filters.startDate as any).toISOString());
+      if (filters?.endDate) query = query.lte("date", new Date(filters.endDate as any).toISOString());
+      if (filters?.categoryId !== undefined) query = query.eq("category_id", filters.categoryId);
+      if (filters?.paymentTypeId !== undefined) query = query.eq("payment_type_id", filters.paymentTypeId);
+      if (filters?.currencyId !== undefined) query = query.eq("currency_id", filters.currencyId);
+      if (filters?.isDecrease !== undefined) query = query.eq("is_decrease", filters.isDecrease);
+
+      const { data, error } = await query.order("date", { ascending: false });
 
       if (error) {
         console.warn("[transactionsRepo] list failed", error);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { workspaceFormSchema } from "@/entities/workspaces";
-import { createRouteSupabase } from "@/lib/supabase/api";
+import { assertWorkspaceMembership, assertWorkspaceOwner, createRouteSupabase } from "@/lib/supabase/api";
 import { createDataRepos } from "@/data";
 
 export const runtime = "nodejs";
@@ -34,6 +34,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
     }
 
+    await assertWorkspaceMembership(supabase, idNum, user.id);
+
     const result = await repo.update(idNum, { name: parsed.data.name });
     if (!result.ok) return NextResponse.json({ ok: false, message: result.message }, { status: 400 });
     return NextResponse.json({ ok: true }, { status: 200 });
@@ -63,6 +65,8 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
     if (userErr || !user) {
       return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
     }
+
+    await assertWorkspaceOwner(supabase, idNum, user.id);
 
     const result = await repo.remove(idNum);
     if (!result.ok) return NextResponse.json({ ok: false, message: result.message }, { status: 400 });

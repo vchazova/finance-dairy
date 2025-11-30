@@ -4,8 +4,17 @@ import type {
   TransactionUpdate,
 } from "@/entities/transactions";
 
+export type TransactionListFilters = {
+  startDate?: string | Date;
+  endDate?: string | Date;
+  categoryId?: number | string;
+  paymentTypeId?: number | string;
+  currencyId?: number | string;
+  isDecrease?: boolean;
+};
+
 export interface TransactionsRepo {
-  list(workspaceId: number | string): Promise<Transaction[]>;
+  list(workspaceId: number | string, filters?: TransactionListFilters): Promise<Transaction[]>;
   get(id: number | string): Promise<Transaction | null>;
   create(
     input: TransactionInsert
