@@ -85,7 +85,19 @@ export const Button: React.FC<ButtonProps> = ({
         />
       )}
       {leftIcon && <span className="inline-flex items-center">{leftIcon}</span>}
-      <span className={cn(loading && "opacity-80")}>{children}</span>
+      <span
+        className={cn(loading && "opacity-80")}
+        style={{
+          display: "inherit",
+          flexDirection: "inherit",
+          alignItems: "inherit",
+          justifyContent: "inherit",
+          gap: "inherit",
+          textAlign: "inherit",
+        }}
+      >
+        {children}
+      </span>
       {rightIcon && (
         <span className="inline-flex items-center">{rightIcon}</span>
       )}

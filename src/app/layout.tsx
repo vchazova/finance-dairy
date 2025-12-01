@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
 import AuthProvider from "@/providers/AuthProvider";
+import AuthGuard from "@/providers/AuthGuard";
 import QueryProvider from "@/providers/QueryProvider";
 
 export const metadata: Metadata = {
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <QueryProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <AuthGuard>{children}</AuthGuard>
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

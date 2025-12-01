@@ -2,13 +2,12 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
-// import { useUserStore } from "@/store/userStore";
-import router from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AuthResponse, Session } from "@supabase/supabase-js";
-import { log } from "console";
 
 type AuthContextType = {
-  session: any | null;
+  session: Session | null;
+  initializing: boolean;
   logout: () => Promise<void>;
   login: (data: { email: string; password: string }) => Promise<AuthResponse>;
   signUp: (data: { email: string; password: string }) => Promise<AuthResponse>;
@@ -27,31 +26,44 @@ export default function AuthProvider({
 }: {
   children: React.ReactNode;
 }) {
-  // const { setSession, session } = useUserStore();
-  //TODO: найти корректный тип для session
-  const [session, setSession] = useState<null | Session>(null);
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    // Получаем текущую сессию при старте
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-    });
+    let mounted = true;
 
-    // Подписываемся на изменения (login/logout/refresh)
+    async function initSession() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (mounted) {
+          setSession(data.session);
+        }
+      } finally {
+        if (mounted) setInitializing(false);
+      }
+    }
+
+    initSession();
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (mounted) {
+        setSession(nextSession);
+      }
     });
 
-    // Отписка при размонтировании
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const logout = async () => {
     await supabase.auth.signOut();
     setSession(null);
-    router.redirect("/auth");
+    router.push("/auth");
   };
 
   const login = async (data: { email: string; password: string }) => {
@@ -72,7 +84,9 @@ export default function AuthProvider({
   };
 
   return (
-    <AuthContext.Provider value={{ session, logout, login, signUp }}>
+    <AuthContext.Provider
+      value={{ session, initializing, logout, login, signUp }}
+    >
       {children}
     </AuthContext.Provider>
   );

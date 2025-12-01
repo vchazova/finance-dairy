@@ -18,7 +18,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   return (
     <div
       className={cn(
-        "bg-[hsl(var(--bg))]",
+        "bg-[hsl(var(--bg))] flex flex-col",
         fullHeight && "min-h-screen",
         className
       )}
@@ -28,7 +28,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           {header}
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+      <main
+        className={cn(
+          "mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-8",
+          fullHeight && "justify-center"
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 };
