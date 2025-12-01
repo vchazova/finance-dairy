@@ -42,6 +42,8 @@ export type DateRangePickerProps = FieldProps & {
   disabled?: boolean;
   id?: string;
   className?: string;
+  startLabel?: string;
+  endLabel?: string;
 };
 
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
@@ -59,6 +61,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   disabled,
   id,
   className,
+  startLabel,
+  endLabel,
 }) => {
   const autoId = React.useId();
   const baseId = id ?? autoId;
@@ -129,6 +133,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     month: "long",
     year: "numeric",
   });
+  const startPlaceholder = startLabel ?? "Start";
+  const endPlaceholder = endLabel ?? "End";
 
   return (
     <FieldWrapper
@@ -157,13 +163,13 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           <span className={cn(!current.start && "text-[hsl(var(--fg-muted))]")}>
             {current.start
               ? `${new Date(current.start).toLocaleDateString()}`
-              : "Start"}
+              : startPlaceholder}
           </span>
           <span className="text-[hsl(var(--fg-muted))]">—</span>
           <span className={cn(!current.end && "text-[hsl(var(--fg-muted))]")}>
             {current.end
               ? `${new Date(current.end).toLocaleDateString()}`
-              : "End"}
+              : endPlaceholder}
           </span>
           <Calendar className="h-4 w-4 text-[hsl(var(--fg-muted))]" />
         </button>
