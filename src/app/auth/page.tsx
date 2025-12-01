@@ -16,7 +16,7 @@ import {
   Text,
 } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
-import { LineChart, Shield, Users } from "lucide-react";
+import { LineChart, Users, Settings } from "lucide-react";
 
 type AuthMode = "login" | "signup";
 
@@ -39,14 +39,13 @@ const AUTH_TABS: Array<{
     value: "login",
     label: "Log in",
     headline: "Welcome back",
-    description: "Pick up where you left off and keep the workspace flowing.",
+    description: "Log in to continue managing your family budget.",
   },
   {
     value: "signup",
     label: "Create account",
-    headline: "Create your shared space",
-    description:
-      "Invite relatives, define budgets, and receive confirmations instantly.",
+    headline: "Get started",
+    description: "Sign up to start managing your family budget in easy way.",
   },
 ];
 
@@ -57,19 +56,21 @@ const HERO_HIGHLIGHTS: Array<{
 }> = [
   {
     icon: Users,
-    title: "Collaborative workspaces",
-    description: "Plan and review spending side-by-side with your family.",
-  },
-  {
-    icon: Shield,
-    title: "Roles & permissions",
+    title: "Shared workspaces",
     description:
-      "Give visibility to everyone while keeping sensitive limits safe.",
+      "Run a shared budget with your partner or family, with clear roles and access.",
   },
   {
     icon: LineChart,
-    title: "Forecast ready",
-    description: "Spot trends early with grouped transactions and alerts.",
+    title: "Clear charts and insights",
+    description:
+      "Track income and spending trends with simple, readable graphs and reports.",
+  },
+  {
+    icon: Settings,
+    title: "Flexible settings that fit you",
+    description:
+      "Customize categories, member roles and limits to match how your family handles money.",
   },
 ];
 
@@ -254,9 +255,31 @@ export default function AuthPage() {
                 </form>
 
                 <Text className="text-xs text-[hsl(var(--fg-muted))]">
-                  {mode === "login"
-                    ? "Need a new workspace? Switch to sign up and start a fresh shared diary."
-                    : "Already have access? Jump back to log in and see your consolidated finances."}
+                  {mode === "login" ? (
+                    <>
+                      Don’t have an account yet?{" "}
+                      <button
+                        type="button"
+                        className="font-medium text-[hsl(var(--color-primary))] underline"
+                        onClick={() => setMode("signup")}
+                      >
+                        Sign up
+                      </button>{" "}
+                      now.
+                    </>
+                  ) : (
+                    <>
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        className="font-medium text-[hsl(var(--color-primary))] underline"
+                        onClick={() => setMode("login")}
+                      >
+                        Log in
+                      </button>{" "}
+                      here.
+                    </>
+                  )}
                 </Text>
               </div>
             </Tabs>
