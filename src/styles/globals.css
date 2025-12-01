@@ -1,37 +1,49 @@
 @import "tailwindcss";
 
+/* Светлая тема: контрастная, primary = чёрный */
 :root {
-  /* Base / Surface */
-  --bg: 0 0% 100%;
-  --card: 0 0% 100%;
-  --border: 0 0% 90%;
-  --fg: 224 71% 4%;
-  --fg-muted: 215 16% 47%;
+  /* База */
+  --bg: 210 20% 98%; /* почти белый фон */
+  --card: 0 0% 100%; /* чисто белые карточки */
+  --border: 220 15% 88%; /* заметный, но мягкий бордер */
 
-  /* MUI-style семантика */
-  --color-primary: 222 47% 11%;
-  --color-primary-fg: 0 0% 100%;
-  --color-secondary: 262 83% 58%;
-  --color-secondary-fg: 0 0% 100%;
-  --color-info: 207 90% 54%;
-  --color-success: 122 39% 49%;
-  --color-warning: 43 96% 56%;
-  --color-danger: 4 90% 58%;
+  --fg: 0 0% 7%; /* #111111 — основной текст, очень контрастный */
+  --fg-muted: 215 15% 45%; /* серый для подписи/вторичного текста */
+
+  /* PRIMARY: ЧЁРНЫЙ */
+  --color-primary: 0 0% 7%; /* чёрный primary для кнопок/ключевых акцентов */
+  --color-primary-fg: 0 0% 100%; /* белый текст на чёрной кнопке */
+
+  /* Secondary: для кнопок, более "кнопочный" нейтрал */
+  --color-secondary: 220 14% 94%; /* светло-серый под фон secondary-кнопки */
+  --color-secondary-fg: 0 0% 7%; /* тёмный текст (почти чёрный) */
+
+  /* Семантика на основе твоей палитры */
+  --color-success: 83 51% 64%; /* #AFD275 — доходы, success */
+  --color-warning: 32 70% 55%; /* мягкий янтарный (добавили) */
+  --color-info: 206 13% 60%; /* на базе #C2CAD0, как спокойный info */
+  --color-danger: 354 71% 60%; /* коралл #E7717D как danger/важный акцент */
 }
 
-[data-theme="dark"] {
-  --bg: 222 14% 10%;
-  --card: 222 14% 12%;
-  --border: 222 14% 22%;
-  --fg: 0 0% 100%;
-  --fg-muted: 215 14% 65%;
+/* Тёмная тема в том же духе */
+.dark {
+  --bg: 220 18% 7%;
+  --card: 220 18% 11%;
+  --border: 220 12% 26%;
 
-  --color-primary: 222 100% 62%;
-  --color-primary-fg: 224 71% 4%;
-  --color-secondary: 262 95% 72%;
-  --color-secondary-fg: 224 71% 4%;
-  --color-info: 207 100% 70%;
-  --color-success: 122 45% 60%;
-  --color-warning: 43 100% 60%;
-  --color-danger: 4 95% 67%;
+  --fg: 0 0% 96%;
+  --fg-muted: 220 10% 70%;
+
+  /* Здесь primary — светлый нейтрал, чтобы быть читаемым на тёмном фоне,
+     но визуально это всё ещё “чёрный бренд”, просто инвертированный */
+  --color-primary: 0 0% 92%;
+  --color-primary-fg: 0 0% 7%;
+
+  --color-secondary: 23 15% 24%;
+  --color-secondary-fg: 0 0% 96%;
+
+  --color-success: 83 51% 66%;
+  --color-warning: 32 70% 60%;
+  --color-info: 206 13% 70%;
+  --color-danger: 354 71% 65%;
 }

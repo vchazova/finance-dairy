@@ -50,21 +50,23 @@ export const Modal: React.FC<ModalProps> = ({
         aria-modal="true"
         aria-label={typeof title === "string" ? title : undefined}
         className={cn(
-          "mx-4 w-full max-w-lg bg-white",
+          "mx-4 w-full max-w-lg bg-[hsl(var(--card))]",
           tokens.radius,
           tokens.shadow,
-          "border border-gray-200",
+          "border border-[hsl(var(--border))]",
           className
         )}
       >
         {title && (
-          <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-            <H2 className="text-gray-900">{title}</H2>
+          <div className="px-5 pt-5 pb-3 border-b border-[hsl(var(--border))]">
+            <H2 className="text-[hsl(var(--fg))]">{title}</H2>
           </div>
         )}
         <div className="px-5 py-4">{children}</div>
         {footer && (
-          <div className="px-5 py-4 border-t border-gray-100">{footer}</div>
+          <div className="px-5 py-4 border-t border-[hsl(var(--border))]">
+            {footer}
+          </div>
         )}
       </div>
     </div>
