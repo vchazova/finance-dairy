@@ -20,14 +20,20 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       className
     )}
   >
-    <div>
-      <div className="text-2xl font-semibold text-[hsl(var(--fg))]">
-        {title}
+    {(title || description) && (
+      <div>
+        {title && (
+          <div className="text-2xl font-semibold text-[hsl(var(--fg))]">
+            {title}
+          </div>
+        )}
+        {description && (
+          <p className="text-sm text-[hsl(var(--fg-muted))]">{description}</p>
+        )}
       </div>
-      {description && (
-        <p className="text-sm text-[hsl(var(--fg-muted))]">{description}</p>
-      )}
-    </div>
-    {actions && <div className="flex items-center gap-2">{actions}</div>}
+    )}
+    {actions && (
+      <div className="flex flex-wrap items-center gap-3">{actions}</div>
+    )}
   </div>
 );

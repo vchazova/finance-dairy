@@ -45,11 +45,14 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({ children }) => {
 };
 
 export type DropdownMenuTriggerProps =
-  React.ButtonHTMLAttributes<HTMLButtonElement>;
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    borderless?: boolean;
+  };
 
 export const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({
   children,
   className,
+  borderless = false,
   ...props
 }) => {
   const { open, setOpen } = useDropdownContext();
@@ -57,7 +60,10 @@ export const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({
     <button
       type="button"
       className={cn(
-        "inline-flex items-center rounded-xl border border-[hsl(var(--border))] px-3 py-2 text-sm",
+        "inline-flex items-center rounded-xl text-sm",
+        borderless
+          ? "px-2 py-1"
+          : "border border-[hsl(var(--border))] px-3 py-2",
         tokens.focusButton,
         className
       )}
@@ -109,7 +115,7 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
       type="button"
       role="menuitem"
       className={cn(
-        "flex w-full items-center justify-between px-4 py-2 text-sm text-left text-[hsl(var(--fg))] hover:bg-black/5",
+        "flex w-full items-center justify-between rounded-xl px-4 py-2 text-sm text-left text-[hsl(var(--fg))] hover:bg-black/5",
         className
       )}
       onClick={(e) => {

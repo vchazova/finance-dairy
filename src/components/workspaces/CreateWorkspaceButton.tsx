@@ -1,28 +1,35 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import * as React from "react";
+import { Button } from "@/components/ui";
 import CreateWorkspaceDialog from "@/components/workspaces/CreateWorkspaceDialog";
 
-export default function CreateWorkspaceButton() {
-  const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+export type CreateWorkspaceButtonProps = {
+  onCreated?: (workspaceId: string) => void;
+};
+
+export default function CreateWorkspaceButton({
+  onCreated,
+}: CreateWorkspaceButtonProps) {
+  const [open, setOpen] = React.useState(false);
+
   return (
     <>
-      <button
-        type="button"
+      <Button
+        variant="default"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="inline-flex h-9 items-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))]"
+        className="h-9 border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-sm text-[hsl(var(--fg))] shadow-none hover:bg-black/5"
       >
-        Новое пространство
-      </button>
-      {open && (
-        <CreateWorkspaceDialog
-          open={open}
-          onOpenChange={setOpen}
-          isPending={isPending}
-          startTransition={startTransition}
-        />
-      )}
+        New workspace
+      </Button>
+      <CreateWorkspaceDialog
+        open={open}
+        onOpenChange={setOpen}
+        onCreated={(payload) => {
+          onCreated?.(payload.id);
+        }}
+      />
     </>
   );
 }
