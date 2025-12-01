@@ -138,10 +138,12 @@ function WorkspaceCardItem({ workspace }: { workspace: WorkspaceListItem }) {
   const createdAtFormatted = formatWorkspaceCreatedAt(workspace.createdAt);
   const router = useRouter();
   const isOwner = workspace.role === "owner";
-  const settingsHref = `/${workspace.id}/settings`;
+  const workspacePath = workspace.slug?.trim() || workspace.id;
+  const workspaceHref = `/${workspacePath}`;
+  const settingsHref = `${workspaceHref}/settings`;
   return (
     <Link
-      href={`/${workspace.id}`}
+      href={workspaceHref}
       className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--color-primary))]"
     >
       <Card className="h-full transition duration-150 group-hover:-translate-y-0.5 group-hover:shadow-lg">

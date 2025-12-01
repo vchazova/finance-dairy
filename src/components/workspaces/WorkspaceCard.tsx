@@ -6,7 +6,8 @@ export default function WorkspaceCard({
 }: {
   workspace: WorkspaceListItem;
 }) {
-  const href = `/${workspace.id}`;
+  const workspacePath = workspace.slug?.trim() || workspace.id;
+  const href = `/${workspacePath}`;
   const description =
     workspace.description?.trim() || "Описание пока не указано.";
   const createdAtFormatted = formatWorkspaceCreatedAt(workspace.createdAt);
