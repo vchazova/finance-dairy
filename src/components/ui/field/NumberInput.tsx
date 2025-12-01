@@ -2,10 +2,7 @@ import * as React from "react";
 import { cn } from "@/components/ui/utils/cn";
 import { Input, type InputProps } from "./Input";
 
-export type NumberInputProps = Omit<
-  InputProps,
-  "type" | "inputMode" | "pattern"
-> & {
+export type NumberInputProps = Omit<InputProps, "type"> & {
   allowNegative?: boolean;
 };
 

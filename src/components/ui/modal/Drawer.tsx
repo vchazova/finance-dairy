@@ -12,6 +12,7 @@ export type DrawerProps = {
   footer?: React.ReactNode;
   width?: "sm" | "md" | "lg";
   className?: string;
+  showCloseButton?: boolean;
 };
 
 const widthMap = {
@@ -28,6 +29,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   footer,
   width = "md",
   className,
+  showCloseButton = true,
 }) => {
   const overlayRef = React.useRef<HTMLDivElement>(null);
 
@@ -63,17 +65,19 @@ export const Drawer: React.FC<DrawerProps> = ({
           className
         )}
       >
-        {(title || onClose) && (
+        {(title || showCloseButton) && (
           <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-5 py-4">
             {title && <H2 className="text-[hsl(var(--fg))]">{title}</H2>}
-            <button
-              type="button"
-              className="rounded-full p-2 text-[hsl(var(--fg-muted))] hover:bg-black/5"
-              onClick={onClose}
-              aria-label="Close drawer"
-            >
-              ×
-            </button>
+            {showCloseButton && (
+              <button
+                type="button"
+                className="rounded-full p-2 text-[hsl(var(--fg-muted))] hover:bg-black/5"
+                onClick={onClose}
+                aria-label="Close drawer"
+              >
+                ×
+              </button>
+            )}
           </div>
         )}
         <div className="flex-1 overflow-auto px-5 py-4">{children}</div>

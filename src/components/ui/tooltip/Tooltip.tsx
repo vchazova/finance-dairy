@@ -5,7 +5,9 @@ import { cn } from "@/components/ui/utils/cn";
 type TooltipContextValue = {
   open: boolean;
   setOpen: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLButtonElement | HTMLSpanElement>;
+  triggerRef: React.MutableRefObject<
+    HTMLButtonElement | HTMLSpanElement | null
+  >;
 };
 
 const TooltipContext = React.createContext<TooltipContextValue | null>(null);
@@ -23,7 +25,8 @@ export type TooltipProps = {
 
 export const Tooltip: React.FC<TooltipProps> = ({ children, defaultOpen }) => {
   const [open, setOpen] = React.useState(!!defaultOpen);
-  const triggerRef = React.useRef<HTMLButtonElement | HTMLSpanElement>(null);
+  const triggerRef =
+    React.useRef<HTMLButtonElement | HTMLSpanElement | null>(null);
 
   return (
     <TooltipContext.Provider value={{ open, setOpen, triggerRef }}>

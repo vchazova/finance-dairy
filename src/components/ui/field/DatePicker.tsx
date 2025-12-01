@@ -190,10 +190,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <div className="grid grid-cols-7 gap-1">
               {days.map((day, idx) => {
                 const iso = formatDateISO(day ?? undefined);
-                const selected = iso && iso === currentValue;
-                const inRangeMin = min ? iso && iso < min : false;
-                const inRangeMax = max ? iso && iso > max : false;
-                const blocked = !day || inRangeMin || inRangeMax;
+                const hasIso = Boolean(iso);
+                const selected = hasIso && iso === currentValue;
+                const beforeMin = Boolean(min && hasIso && iso < min);
+                const afterMax = Boolean(max && hasIso && iso > max);
+                const blocked = !day || beforeMin || afterMax;
                 return (
                   <button
                     key={idx}

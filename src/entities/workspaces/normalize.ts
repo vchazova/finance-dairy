@@ -30,7 +30,7 @@ export function normalizeWorkspaceRow(input: any): NormalizedWorkspace {
     name: parsed.name,
     slug: parsed.slug,
     description: parsed.description ?? null,
-    createdAt: parsed.created_at,
+    createdAt: parsed.created_at.toISOString(),
     adminUserId: parsed.admin_user_id,
     raw: parsed,
   };

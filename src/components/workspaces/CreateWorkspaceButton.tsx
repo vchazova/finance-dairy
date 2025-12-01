@@ -27,6 +27,7 @@ export default function CreateWorkspaceButton({
         open={open}
         onOpenChange={setOpen}
         onCreated={(payload) => {
+          if (!payload) return;
           onCreated?.(payload.id);
         }}
       />

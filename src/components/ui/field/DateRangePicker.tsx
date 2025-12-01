@@ -208,12 +208,13 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             <div className="grid grid-cols-7 gap-1">
               {days.map((day, idx) => {
                 const iso = formatDateISO(day ?? undefined);
-                const isStart = iso && iso === current.start;
-                const isEnd = iso && iso === current.end;
+                const hasIso = Boolean(iso);
+                const isStart = hasIso && iso === current.start;
+                const isEnd = hasIso && iso === current.end;
                 const inRangeMid = inRange(day) && !isStart && !isEnd;
-                const inRangeMin = min ? iso && iso < min : false;
-                const inRangeMax = max ? iso && iso > max : false;
-                const blocked = !day || inRangeMin || inRangeMax;
+                const beforeMin = Boolean(min && hasIso && iso < min);
+                const afterMax = Boolean(max && hasIso && iso > max);
+                const blocked = !day || beforeMin || afterMax;
                 return (
                   <button
                     key={idx}
