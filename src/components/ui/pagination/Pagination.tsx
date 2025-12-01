@@ -18,8 +18,8 @@ function getPages(current: number, total: number) {
   }
 
   pages.push(1);
-  let start = Math.max(2, current - 1);
-  let end = Math.min(total - 1, current + 1);
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
   if (start > 2) pages.push("...");
   for (let i = start; i <= end; i++) pages.push(i);
   if (end < total - 1) pages.push("...");
@@ -79,7 +79,10 @@ export const Pagination: React.FC<PaginationProps> = ({
               {p}
             </button>
           ) : (
-            <span key={`ellipsis-${idx}`} className="px-2 text-[hsl(var(--fg-muted))]">
+            <span
+              key={`ellipsis-${idx}`}
+              className="px-2 text-[hsl(var(--fg-muted))]"
+            >
               …
             </span>
           )
