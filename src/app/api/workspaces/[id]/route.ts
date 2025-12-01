@@ -36,7 +36,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     await assertWorkspaceMembership(supabase, idNum, user.id);
 
-    const result = await repo.update(idNum, { name: parsed.data.name });
+    const result = await repo.update(idNum, {
+      name: parsed.data.name,
+      description: parsed.data.description ?? null,
+    });
     if (!result.ok) return NextResponse.json({ ok: false, message: result.message }, { status: 400 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err: any) {

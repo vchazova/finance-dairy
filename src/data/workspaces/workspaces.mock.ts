@@ -22,6 +22,9 @@ export const workspacesRepo: WorkspacesRepo = {
         return {
           id: String(ws.id),
           name: ws.name,
+          slug: ws.slug,
+          description: ws.description ?? null,
+          createdAt: ws.created_at,
           role: m.role,
         } as WorkspaceListItem;
       })
@@ -37,18 +40,27 @@ export const workspacesRepo: WorkspacesRepo = {
     if (name.length < 2)
       return { ok: false, message: "Name must be at least 2 characters" };
 
-    const ws = store.addWorkspace({ name, admin_user_id: input.userId });
+    const ws = store.addWorkspace({
+      name,
+      slug: input.slug,
+      description: input.description ?? null,
+      admin_user_id: input.userId,
+    });
     store.addMember({
       user_id: input.userId,
       workspace_id: ws.id,
       role: "owner",
     });
 
-    return { ok: true, id: String(ws.id) };
+    return { ok: true, id: String(ws.id), slug: ws.slug };
   },
 
   async update(): Promise<{ ok: true } | { ok: false; message: string }> {
     return { ok: true };
+  },
+
+  async slugExists(slug: string): Promise<boolean> {
+    return store.getWorkspaces().some((ws) => ws.slug === slug);
   },
 
   async remove(): Promise<{ ok: true } | { ok: false; message: string }> {

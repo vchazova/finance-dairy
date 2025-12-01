@@ -2,11 +2,13 @@ import type { WorkspaceListItem } from "@/types/workspaces";
 
 export type CreateWorkspaceInput = {
   name: string;
+  slug: string;
+  description?: string | null;
   userId: string;
 };
 
 export type CreateWorkspaceResult =
-  | { ok: true; id: string }
+  | { ok: true; id: string; slug: string }
   | { ok: false; message: string };
 
 export interface WorkspacesRepo {
@@ -21,11 +23,16 @@ export interface WorkspacesRepo {
   create(input: CreateWorkspaceInput): Promise<CreateWorkspaceResult>;
 
   /**
+   * Check if slug already exists.
+   */
+  slugExists(slug: string): Promise<boolean>;
+
+  /**
    * Update workspace (name only for now).
    */
   update(
     id: string | number,
-    payload: { name?: string }
+    payload: { name?: string; slug?: string; description?: string | null }
   ): Promise<{ ok: true } | { ok: false; message: string }>;
 
   /**

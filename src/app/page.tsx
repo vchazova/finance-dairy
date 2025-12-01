@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Settings } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
@@ -132,27 +134,58 @@ export default function HomePage() {
 }
 
 function WorkspaceCardItem({ workspace }: { workspace: WorkspaceListItem }) {
+  const description = workspace.description?.trim();
+  const createdAtFormatted = formatWorkspaceCreatedAt(workspace.createdAt);
+  const router = useRouter();
+  const isOwner = workspace.role === "owner";
+  const settingsHref = `/${workspace.id}/settings`;
   return (
     <Link
       href={`/${workspace.id}`}
       className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--color-primary))]"
     >
-      <Card className="h-full gap-3 transition duration-150 group-hover:-translate-y-0.5 group-hover:shadow-lg">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-[hsl(var(--fg))]">
-              {workspace.name}
-            </h3>
-            <p className="text-sm text-[hsl(var(--fg-muted))] py-2">
-              Some description or details about the workspace.
-            </p>
+      <Card className="h-full transition duration-150 group-hover:-translate-y-0.5 group-hover:shadow-lg">
+        <div className="flex h-full flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold text-[hsl(var(--fg))]">
+                {workspace.name}
+              </h3>
+              {description && (
+                <p className="text-sm text-[hsl(var(--fg-muted))] py-2 line-clamp-2">
+                  {description}
+                </p>
+              )}
+              {createdAtFormatted && (
+                <p className="text-xs text-[hsl(var(--fg-muted))]">
+                  created at {createdAtFormatted}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="primary" className="capitalize">
+                {workspace.role}
+              </Badge>
+              {isOwner ? (
+                <button
+                  type="button"
+                  aria-label="Workspace settings"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--border))] text-lg leading-none text-[hsl(var(--fg))] transition hover:bg-[hsl(var(--card))]"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    router.push(settingsHref);
+                  }}
+                >
+                  <Settings className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">Workspace settings</span>
+                </button>
+              ) : null}
+            </div>
           </div>
-          <Badge variant="primary" className="capitalize">
-            {workspace.role}
-          </Badge>
-        </div>
-        <div className="text-sm font-medium text-[hsl(var(--color-primary))]">
-          Open workspace {"\u2192"}
+          <div className="mt-auto text-sm font-medium text-[hsl(var(--color-primary))]">
+            Open workspace {"\u2192"}
+          </div>
         </div>
       </Card>
     </Link>
@@ -173,4 +206,14 @@ function WorkspaceGridSkeleton() {
       ))}
     </div>
   );
+}
+
+function formatWorkspaceCreatedAt(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
 }

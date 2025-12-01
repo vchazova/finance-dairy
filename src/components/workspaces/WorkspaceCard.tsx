@@ -7,6 +7,9 @@ export default function WorkspaceCard({
   workspace: WorkspaceListItem;
 }) {
   const href = `/${workspace.id}`;
+  const description =
+    workspace.description?.trim() || "Описание пока не указано.";
+  const createdAtFormatted = formatWorkspaceCreatedAt(workspace.createdAt);
   return (
     <Link
       href={href}
@@ -17,6 +20,14 @@ export default function WorkspaceCard({
           {workspace.name}
         </h2>
       </div>
+      <p className="mb-3 text-sm text-[hsl(var(--fg-muted))] line-clamp-2">
+        {description}
+      </p>
+      {createdAtFormatted && (
+        <p className="mb-4 text-xs text-[hsl(var(--fg-muted))]">
+          created at {createdAtFormatted}
+        </p>
+      )}
       <div className="text-sm text-[hsl(var(--fg-muted))]">
         Ваша роль:{" "}
         <span className="font-medium text-[hsl(var(--fg))]">
@@ -25,4 +36,14 @@ export default function WorkspaceCard({
       </div>
     </Link>
   );
+}
+
+function formatWorkspaceCreatedAt(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
 }

@@ -31,7 +31,10 @@ export function createWorkspacesSupabaseRepo(client?: SupabaseClient): Workspace
       const ids = Array.from(new Set((memberships ?? []).map((m: any) => m.workspace_id)));
       if (ids.length === 0) return [];
 
-      const { data: workspaces, error: wsErr } = await supabase.from("workspaces").select("id, name").in("id", ids);
+      const { data: workspaces, error: wsErr } = await supabase
+        .from("workspaces")
+        .select("id, name, slug, description, created_at")
+        .in("id", ids);
       if (wsErr) {
         console.warn("[workspacesRepo] listForUser workspaces failed", wsErr);
         return [];
@@ -45,6 +48,9 @@ export function createWorkspacesSupabaseRepo(client?: SupabaseClient): Workspace
           return {
             id: String(ws.id),
             name: ws.name as string,
+            slug: ws.slug as string,
+            description: (ws.description as string | null) ?? null,
+            createdAt: ws.created_at as string,
             role: m.role as string,
           };
         })
@@ -57,8 +63,13 @@ export function createWorkspacesSupabaseRepo(client?: SupabaseClient): Workspace
     async create(input: CreateWorkspaceInput): Promise<CreateWorkspaceResult> {
       const { data: ws, error: wsErr } = await supabase
         .from("workspaces")
-        .insert({ name: input.name, admin_user_id: input.userId })
-        .select("id")
+        .insert({
+          name: input.name,
+          slug: input.slug,
+          description: input.description ?? null,
+          admin_user_id: input.userId,
+        })
+        .select("id, slug")
         .single();
 
       if (wsErr || !ws) {
@@ -73,17 +84,32 @@ export function createWorkspacesSupabaseRepo(client?: SupabaseClient): Workspace
         return { ok: false, message: memErr.message };
       }
 
-      return { ok: true, id: String(ws.id) };
+      return { ok: true, id: String(ws.id), slug: ws.slug as string };
     },
 
     async update(id, payload) {
       const patch: Record<string, any> = {};
       if (payload.name !== undefined) patch.name = payload.name;
+      if (payload.slug !== undefined) patch.slug = payload.slug;
+      if (payload.description !== undefined) patch.description = payload.description ?? null;
       if (Object.keys(patch).length === 0) return { ok: true } as const;
 
       const { error } = await supabase.from("workspaces").update(patch).eq("id", id);
       if (error) return { ok: false, message: error.message } as const;
       return { ok: true } as const;
+    },
+
+    async slugExists(slug: string): Promise<boolean> {
+      const { data, error } = await supabase
+        .from("workspaces")
+        .select("id")
+        .eq("slug", slug)
+        .limit(1);
+      if (error) {
+        console.warn("[workspacesRepo] slugExists failed", error);
+        return true;
+      }
+      return Boolean(data && data.length > 0);
     },
 
     async remove(id) {

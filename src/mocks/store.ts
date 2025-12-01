@@ -11,6 +11,8 @@ type WorkspaceRow = {
   id: number;
   created_at: string;
   name: string;
+  slug: string;
+  description: string | null;
   admin_user_id: string;
 };
 
@@ -104,11 +106,18 @@ export const store = {
   },
 
   // Writers
-  addWorkspace(input: { name: string; admin_user_id: string }): WorkspaceRow {
+  addWorkspace(input: {
+    name: string;
+    slug: string;
+    description?: string | null;
+    admin_user_id: string;
+  }): WorkspaceRow {
     const row: WorkspaceRow = {
       id: nextId(workspaces),
       created_at: nowIso(),
       name: input.name,
+      slug: input.slug,
+      description: input.description ?? null,
       admin_user_id: input.admin_user_id,
     };
     workspaces.push(row);

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { workspaceFormSchema } from "@/entities/workspaces";
 import { createRouteSupabase } from "@/lib/supabase/api";
 import { createDataRepos } from "@/data";
+import type { WorkspacesRepo } from "@/data/workspaces/workspaces.repo";
+import { slugifyWorkspaceName } from "@/lib/slug";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,16 +58,34 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await repo.create({ name: parsed.data.name, userId: user.id });
+    const slug = await generateUniqueWorkspaceSlug(parsed.data.name, repo);
+
+    const result = await repo.create({
+      name: parsed.data.name,
+      slug,
+      description: parsed.data.description ?? null,
+      userId: user.id,
+    });
     if (!result.ok) {
       return NextResponse.json({ ok: false, message: result.message }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, id: String(result.id) }, { status: 201 });
+    return NextResponse.json({ ok: true, id: String(result.id), slug: result.slug }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { ok: false, message: err?.message ?? "Failed to create workspace" },
       { status: 500 }
     );
   }
+}
+
+async function generateUniqueWorkspaceSlug(name: string, repo: WorkspacesRepo) {
+  const base = slugifyWorkspaceName(name);
+  let candidate = base;
+  let attempts = 1;
+  while (await repo.slugExists(candidate)) {
+    candidate = `${base}-${attempts}`;
+    attempts += 1;
+  }
+  return candidate;
 }

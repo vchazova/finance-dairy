@@ -8,6 +8,9 @@ import type { WorkspaceListItem } from "@/types/workspaces";
 export type NormalizedWorkspace = {
   id: string;
   name: string;
+  slug: string;
+  description: string | null;
+  createdAt: string;
   adminUserId: string;
   raw: Workspace;
 };
@@ -25,6 +28,9 @@ export function normalizeWorkspaceRow(input: any): NormalizedWorkspace {
   return {
     id: String(parsed.id),
     name: parsed.name,
+    slug: parsed.slug,
+    description: parsed.description ?? null,
+    createdAt: parsed.created_at,
     adminUserId: parsed.admin_user_id,
     raw: parsed,
   };
@@ -49,6 +55,9 @@ export function toWorkspaceListItem(
   return {
     id: workspace.id,
     name: workspace.name,
+    slug: workspace.slug,
+    description: workspace.description ?? undefined,
+    createdAt: workspace.createdAt,
     role: membership.role,
   };
 }

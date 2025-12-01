@@ -3,12 +3,16 @@ export const WORKSPACES = [
     id: 1001,
     created_at: "2025-11-12T09:00:00.000Z",
     name: "Family Finance",
+    slug: "family-finance",
+    description: "Основной бюджет для семьи.",
     admin_user_id: "11111111-1111-4111-8111-111111111111",
   },
   {
     id: 1002,
     created_at: "2025-11-12T09:01:00.000Z",
     name: "Side Project",
+    slug: "side-project",
+    description: "Расходы и доходы по фрилансу.",
     admin_user_id: "11111111-1111-4111-8111-111111111111",
   },
 ];

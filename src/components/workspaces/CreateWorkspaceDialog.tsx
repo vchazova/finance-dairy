@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Button, Input, Modal } from "@/components/ui";
+import { Button, Input, Modal, TextArea } from "@/components/ui";
 import { useApiFetch } from "@/lib/api/client";
 
 export type CreateWorkspaceDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated?: (payload: { id: string; name: string }) => void;
+  onCreated?: (payload?: { id: string; name: string; slug?: string }) => void;
 };
 
 type CreateWorkspaceResponse = {
   ok: boolean;
   id?: string;
+  slug?: string;
   message?: string;
 };
 
@@ -23,12 +24,14 @@ export default function CreateWorkspaceDialog({
 }: CreateWorkspaceDialogProps) {
   const apiFetch = useApiFetch();
   const [name, setName] = React.useState("");
+  const [description, setDescription] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) {
       setName("");
+      setDescription("");
       setError(null);
       setSubmitting(false);
     }
@@ -50,6 +53,11 @@ export default function CreateWorkspaceDialog({
         return;
       }
 
+      const trimmedDescription = description.trim();
+      const normalizedDescription = trimmedDescription.length
+        ? trimmedDescription
+        : undefined;
+
       setSubmitting(true);
       setError(null);
 
@@ -58,17 +66,20 @@ export default function CreateWorkspaceDialog({
           "/api/workspaces",
           {
             method: "POST",
-            body: JSON.stringify({ name: trimmed }),
+            body: JSON.stringify({
+              name: trimmed,
+              description: normalizedDescription,
+            }),
           }
         );
 
-        if (!data?.ok || !data.id) {
+        if (!data?.ok || !data.id || !data.slug) {
           throw new Error(
             data?.message || "Failed to create workspace. Try again."
           );
         }
 
-        onCreated?.({ id: data.id, name: trimmed });
+        onCreated?.({ id: data.id, name: trimmed, slug: data.slug });
         onOpenChange(false);
       } catch (err) {
         const message =
@@ -80,7 +91,7 @@ export default function CreateWorkspaceDialog({
         setSubmitting(false);
       }
     },
-    [apiFetch, name, onCreated, onOpenChange, submitting]
+    [apiFetch, description, name, onCreated, onOpenChange, submitting]
   );
 
   return (
@@ -119,10 +130,15 @@ export default function CreateWorkspaceDialog({
           error={error ?? undefined}
           disabled={submitting}
         />
-        <p className="text-sm text-[hsl(var(--fg-muted))]">
-          Use workspaces to separate individual families, trips, or long-term
-          goals.
-        </p>
+        <TextArea
+          label="Description (optional)"
+          placeholder="Descripe the workplace purpose"
+          maxLength={280}
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          disabled={submitting}
+          hint="Up to 280 characters."
+        />
       </form>
     </Modal>
   );
