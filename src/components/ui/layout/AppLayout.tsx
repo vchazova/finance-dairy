@@ -29,8 +29,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       </header>
       <main
         className={cn(
-          "mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-8",
-          fullHeight && "justify-center"
+          "mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-8"
         )}
       >
         {children}

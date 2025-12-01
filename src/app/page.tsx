@@ -131,7 +131,6 @@ export default function HomePage() {
   );
 }
 
-
 function WorkspaceCardItem({ workspace }: { workspace: WorkspaceListItem }) {
   return (
     <Link
@@ -144,8 +143,8 @@ function WorkspaceCardItem({ workspace }: { workspace: WorkspaceListItem }) {
             <h3 className="text-lg font-semibold text-[hsl(var(--fg))]">
               {workspace.name}
             </h3>
-            <p className="text-sm text-[hsl(var(--fg-muted))]">
-              Continue tracking budgets and members.
+            <p className="text-sm text-[hsl(var(--fg-muted))] py-2">
+              Some description or details about the workspace.
             </p>
           </div>
           <Badge variant="primary" className="capitalize">
