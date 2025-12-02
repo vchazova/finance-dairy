@@ -4,6 +4,7 @@ import type {
   WorkspacesRepo,
   CreateWorkspaceInput,
   CreateWorkspaceResult,
+  WorkspaceListFilters,
 } from "@/data/workspaces/workspaces.repo";
 import type { WorkspaceListItem } from "@/types/workspaces";
 
@@ -11,17 +12,28 @@ function getClient(client?: SupabaseClient) {
   return client ?? defaultClient;
 }
 
+function escapeIlikePattern(value: string) {
+  return value
+    .replace(/[%_]/g, (match) => `\\${match}`)
+    .replace(/,/g, " ");
+}
+
 export function createWorkspacesSupabaseRepo(client?: SupabaseClient): WorkspacesRepo {
   const supabase = getClient(client);
 
   return {
     // List workspaces current user belongs to, including role.
-    async listForUser(userId: string): Promise<WorkspaceListItem[]> {
+    async listForUser(userId: string, filters?: WorkspaceListFilters): Promise<WorkspaceListItem[]> {
       // Avoid nested selects to prevent recursive RLS: first memberships, then workspaces
-      const { data: memberships, error: memErr } = await supabase
+      let membershipQuery = supabase
         .from("workspace_members")
         .select("workspace_id, role")
         .eq("user_id", userId);
+
+      const roleFilter = filters?.role?.trim();
+      if (roleFilter) membershipQuery = membershipQuery.eq("role", roleFilter);
+
+      const { data: memberships, error: memErr } = await membershipQuery;
 
       if (memErr) {
         console.warn("[workspacesRepo] listForUser memberships failed", memErr);
@@ -31,10 +43,21 @@ export function createWorkspacesSupabaseRepo(client?: SupabaseClient): Workspace
       const ids = Array.from(new Set((memberships ?? []).map((m: any) => m.workspace_id)));
       if (ids.length === 0) return [];
 
-      const { data: workspaces, error: wsErr } = await supabase
+      let workspaceQuery = supabase
         .from("workspaces")
         .select("id, name, slug, description, created_at")
         .in("id", ids);
+
+      const slugFilter = filters?.slug?.trim();
+      if (slugFilter) workspaceQuery = workspaceQuery.eq("slug", slugFilter);
+
+      const searchFilter = filters?.search?.trim();
+      if (searchFilter) {
+        const pattern = `%${escapeIlikePattern(searchFilter)}%`;
+        workspaceQuery = workspaceQuery.or(`name.ilike.${pattern},slug.ilike.${pattern}`);
+      }
+
+      const { data: workspaces, error: wsErr } = await workspaceQuery;
       if (wsErr) {
         console.warn("[workspacesRepo] listForUser workspaces failed", wsErr);
         return [];

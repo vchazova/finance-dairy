@@ -1,5 +1,20 @@
 import type { WorkspaceListItem } from "@/types/workspaces";
 
+export type WorkspaceListFilters = {
+  /**
+   * Case-insensitive search across workspace name and slug.
+   */
+  search?: string;
+  /**
+   * Exact match against workspace slug.
+   */
+  slug?: string;
+  /**
+   * Filter by membership role (owner, member, etc.).
+   */
+  role?: string;
+};
+
 export type CreateWorkspaceInput = {
   name: string;
   slug: string;
@@ -15,7 +30,7 @@ export interface WorkspacesRepo {
   /**
    * List workspaces for user with role.
    */
-  listForUser(userId: string): Promise<WorkspaceListItem[]>;
+  listForUser(userId: string, filters?: WorkspaceListFilters): Promise<WorkspaceListItem[]>;
 
   /**
    * Create workspace and return id.

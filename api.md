@@ -4,6 +4,10 @@
 
 ## Workspaces
 - **GET /api/workspaces** — список рабочих пространств текущего пользователя.  
+  Query:  
+  - `search` — подстрочный поиск по названию и slug (регистронезависимый)  
+  - `slug` — точное совпадение slug  
+  - `role` — фильтр по роли участника (owner/member/...)  
   Ответ: `[{ "id": "1", "name": "My workspace", "role": "owner" }]`
 - **POST /api/workspaces** — создать workspace.  
   Тело:  

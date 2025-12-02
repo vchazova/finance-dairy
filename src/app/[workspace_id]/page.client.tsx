@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/providers/AuthProvider";
@@ -16,6 +16,7 @@ import {
   type NormalizedCurrency,
 } from "@/entities/dictionaries/normalize";
 import { queryKeys } from "@/lib/queryKeys";
+import type { WorkspaceListItem } from "@/types/workspaces";
 
 type Tx = {
   id: string;
@@ -31,45 +32,51 @@ type Tx = {
 
 type Option = { id: string; label: string };
 
-export default function WorkspaceClientPage({
-  workspaceId,
-  initialCategories = [],
-  initialPaymentTypes = [],
-  initialCurrencies = [],
-}: {
-  workspaceId: string;
-  initialCategories?: Option[];
-  initialPaymentTypes?: Option[];
-  initialCurrencies?: Option[];
-}) {
+export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: string }) {
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
 
-  const categoriesQuery = useQuery({
-    queryKey: queryKeys.categories(workspaceId),
+  const workspaceQuery = useQuery({
+    queryKey: queryKeys.workspace(workspaceSlug),
     queryFn: async () => {
-      const catsJson = await apiFetch<any[]>(`/api/dictionaries/categories?workspaceId=${workspaceId}`);
+      const list = await apiFetch<WorkspaceListItem[]>(`/api/workspaces?slug=${workspaceSlug}`);
+      return (list ?? [])[0] ?? null;
+    },
+    enabled: !!session?.user?.id && Boolean(workspaceSlug),
+  });
+
+  const workspace = workspaceQuery.data ?? null;
+  const workspaceIdForQueries = workspace?.id ?? null;
+
+  const categoriesQuery = useQuery({
+    queryKey: queryKeys.categories(workspaceSlug),
+    queryFn: async () => {
+      if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
+      const catsJson = await apiFetch<any[]>(
+        `/api/dictionaries/categories?workspaceId=${workspaceIdForQueries}`
+      );
       return (catsJson as any[]).map((c) => {
         const normalized = normalizeCategoryRow(c as NormalizedCategory);
         return { id: normalized.id, label: normalized.name };
       });
     },
-    initialData: initialCategories,
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
   });
 
   const paymentTypesQuery = useQuery({
-    queryKey: queryKeys.paymentTypes(workspaceId),
+    queryKey: queryKeys.paymentTypes(workspaceSlug),
     queryFn: async () => {
-      const list = await apiFetch<any[]>(`/api/dictionaries/payment_types?workspaceId=${workspaceId}`);
+      if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
+      const list = await apiFetch<any[]>(
+        `/api/dictionaries/payment_types?workspaceId=${workspaceIdForQueries}`
+      );
       return (list as any[]).map((p) => {
         const normalized = normalizePaymentTypeRow(p as NormalizedPaymentType);
         return { id: normalized.id, label: normalized.name };
       });
     },
-    initialData: initialPaymentTypes,
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
   });
 
   const currenciesQuery = useQuery({
@@ -81,7 +88,6 @@ export default function WorkspaceClientPage({
         return { id: normalized.id, label: `${normalized.code} (${normalized.symbol ?? ""})`.trim() };
       });
     },
-    initialData: initialCurrencies,
     enabled: !!session?.user?.id,
   });
 
@@ -91,9 +97,10 @@ export default function WorkspaceClientPage({
   );
 
   const transactionsQuery = useQuery({
-    queryKey: queryKeys.transactions(workspaceId),
+    queryKey: queryKeys.transactions(workspaceSlug),
     queryFn: async () => {
-      const list = await apiFetch<any[]>(`/api/transactions?workspaceId=${workspaceId}`);
+      if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
+      const list = await apiFetch<any[]>(`/api/transactions?workspaceId=${workspaceIdForQueries}`);
       return list.map((t) => {
         const n = normalizeTransactionRow(t);
         return {
@@ -109,27 +116,50 @@ export default function WorkspaceClientPage({
         } satisfies Tx;
       });
     },
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
   });
 
   const loading = transactionsQuery.isPending;
   const error = (transactionsQuery.error as Error | null)?.message ?? null;
   const tx = transactionsQuery.data ?? [];
+  const workspaceError = workspaceQuery.error as Error | null;
+  const workspacePending = workspaceQuery.isPending;
 
-  return (
-    <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
-      <Header user={session} />
-      <main className="mx-auto max-w-6xl px-4 py-8 space-y-6">
+  let mainContent: React.ReactNode;
+
+  if (workspacePending) {
+    mainContent = (
+      <div className="rounded-2xl border border-[hsl(var(--border))] p-6 text-center text-sm text-[hsl(var(--fg-muted))]">
+        Loading workspace…
+      </div>
+    );
+  } else if (workspaceError) {
+    mainContent = (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
+        Failed to load workspace: {workspaceError.message}
+      </div>
+    );
+  } else if (!workspace) {
+    mainContent = (
+      <div className="rounded-2xl border border-[hsl(var(--border))] p-6 text-center text-sm text-[hsl(var(--fg-muted))]">
+        Workspace not found or you do not have access.
+      </div>
+    );
+  } else {
+    const resolvedWorkspaceId = workspace.id;
+    mainContent = (
+      <>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Workspace {workspaceId}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{workspace.name}</h1>
           <div className="flex items-center gap-2">
             <Link
-              href={`/${workspaceId}/settings`}
+              href={`/${workspaceSlug}/settings`}
               className="inline-flex h-9 items-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]">
               Manage Settings
             </Link>
             <AddTransactionButton
-              workspaceId={workspaceId}
+              workspaceId={resolvedWorkspaceId}
+              workspaceSlug={workspaceSlug}
               categories={categoriesQuery.data ?? []}
               paymentTypes={paymentTypesQuery.data ?? []}
               currencies={currenciesQuery.data ?? []}
@@ -169,12 +199,18 @@ export default function WorkspaceClientPage({
                 tx.map((row) => (
                   <tr key={row.id} className="border-t border-[hsl(var(--border))]">
                     <td className="px-4 py-2 whitespace-nowrap">{row.date}</td>
-                    <td className="px-4 py-2">{row.categoryName || categoryLabelMap.get(row.categoryId) || row.categoryId}</td>
                     <td className="px-4 py-2">
-                      {paymentTypesQuery.data?.find((p) => p.id === row.paymentTypeId)?.label || row.paymentTypeId || "—"}
+                      {row.categoryName || categoryLabelMap.get(row.categoryId) || row.categoryId}
                     </td>
                     <td className="px-4 py-2">
-                      {currenciesQuery.data?.find((c) => c.id === row.currencyId)?.label || row.currencyId || "—"}
+                      {paymentTypesQuery.data?.find((p) => p.id === row.paymentTypeId)?.label ||
+                        row.paymentTypeId ||
+                        "—"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {currenciesQuery.data?.find((c) => c.id === row.currencyId)?.label ||
+                        row.currencyId ||
+                        "—"}
                     </td>
                     <td className="px-4 py-2 tabular-nums">
                       <span className={row.amount < 0 ? "text-red-600" : "text-green-600"}>
@@ -188,18 +224,27 @@ export default function WorkspaceClientPage({
             </tbody>
           </table>
         </div>
-      </main>
+      </>
+    );
+  }
+
+  return (
+    <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
+      <Header user={session} />
+      <main className="mx-auto max-w-6xl px-4 py-8 space-y-6">{mainContent}</main>
     </div>
   );
 }
 
 function AddTransactionButton({
   workspaceId,
+  workspaceSlug,
   categories,
   paymentTypes,
   currencies,
 }: {
   workspaceId: string;
+  workspaceSlug: string;
   categories: Option[];
   paymentTypes: Option[];
   currencies: Option[];
@@ -221,6 +266,7 @@ function AddTransactionButton({
           paymentTypes={paymentTypes}
           currencies={currencies}
           workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
         />
       )}
     </>
@@ -233,12 +279,14 @@ function CreateTransactionDialog({
   paymentTypes,
   currencies,
   workspaceId,
+  workspaceSlug,
 }: {
   onClose: () => void;
   categories: Option[];
   paymentTypes: Option[];
   currencies: Option[];
   workspaceId: string;
+  workspaceSlug: string;
 }) {
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
@@ -283,7 +331,7 @@ function CreateTransactionDialog({
         amount: toSignedAmount(Number(variables.amount), variables.is_decrease),
         comment: variables.comment ?? null,
       };
-      queryClient.setQueryData<Tx[]>(queryKeys.transactions(workspaceId), (prev = []) => [item, ...(prev ?? [])]);
+      queryClient.setQueryData<Tx[]>(queryKeys.transactions(workspaceSlug), (prev = []) => [item, ...(prev ?? [])]);
     },
   });
 

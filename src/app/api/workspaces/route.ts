@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { workspaceFormSchema } from "@/entities/workspaces";
 import { createRouteSupabase } from "@/lib/supabase/api";
 import { createDataRepos } from "@/data";
-import type { WorkspacesRepo } from "@/data/workspaces/workspaces.repo";
+import type { WorkspacesRepo, WorkspaceListFilters } from "@/data/workspaces/workspaces.repo";
 import { slugifyWorkspaceName } from "@/lib/slug";
 
 export const runtime = "nodejs";
@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 // GET /api/workspaces - list workspaces current user belongs to.
 export async function GET(req: Request) {
   try {
+    const filters = extractWorkspaceListFilters(req);
     const supabase = await createRouteSupabase(req);
     const { workspacesRepo: repo } = createDataRepos(supabase);
     const {
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const items = await repo.listForUser(user.id);
+    const items = await repo.listForUser(user.id, filters);
     return NextResponse.json(items, { status: 200 });
   } catch (err: any) {
     return NextResponse.json(
@@ -88,4 +89,29 @@ async function generateUniqueWorkspaceSlug(name: string, repo: WorkspacesRepo) {
     attempts += 1;
   }
   return candidate;
+}
+
+function extractWorkspaceListFilters(req: Request): WorkspaceListFilters | undefined {
+  const url = new URL(req.url);
+  const filters: WorkspaceListFilters = {};
+
+  const search = url.searchParams.get("search");
+  if (search) {
+    const trimmed = search.trim();
+    if (trimmed) filters.search = trimmed;
+  }
+
+  const slug = url.searchParams.get("slug");
+  if (slug) {
+    const trimmed = slug.trim();
+    if (trimmed) filters.slug = trimmed;
+  }
+
+  const role = url.searchParams.get("role");
+  if (role) {
+    const trimmed = role.trim();
+    if (trimmed) filters.role = trimmed;
+  }
+
+  return Object.keys(filters).length > 0 ? filters : undefined;
 }

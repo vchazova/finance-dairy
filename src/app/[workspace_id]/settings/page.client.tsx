@@ -53,9 +53,10 @@ export default function WorkspaceSettingsClient({
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
+  const workspaceSlug = workspaceId;
 
   const categoriesQuery = useQuery({
-    queryKey: queryKeys.categories(workspaceId),
+    queryKey: queryKeys.categories(workspaceSlug),
     queryFn: async () => {
       const rows = await apiFetch<any[]>(
         `/api/dictionaries/categories?workspaceId=${workspaceId}`
@@ -67,7 +68,7 @@ export default function WorkspaceSettingsClient({
   });
 
   const paymentTypesQuery = useQuery({
-    queryKey: queryKeys.paymentTypes(workspaceId),
+    queryKey: queryKeys.paymentTypes(workspaceSlug),
     queryFn: async () => {
       const rows = await apiFetch<any[]>(
         `/api/dictionaries/payment_types?workspaceId=${workspaceId}`
@@ -103,11 +104,11 @@ export default function WorkspaceSettingsClient({
 
   const reloadCategories = () =>
     queryClient.invalidateQueries({
-      queryKey: queryKeys.categories(workspaceId),
+      queryKey: queryKeys.categories(workspaceSlug),
     });
   const reloadPaymentTypes = () =>
     queryClient.invalidateQueries({
-      queryKey: queryKeys.paymentTypes(workspaceId),
+      queryKey: queryKeys.paymentTypes(workspaceSlug),
     });
   const reloadCurrencies = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.currencies });
@@ -146,6 +147,7 @@ export default function WorkspaceSettingsClient({
 
         <CategoriesBlock
           workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
           data={categoriesQuery.data ?? []}
           status={categoryStatus}
           onReload={reloadCategories}
@@ -154,6 +156,7 @@ export default function WorkspaceSettingsClient({
 
         <PaymentTypesBlock
           workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
           data={paymentTypesQuery.data ?? []}
           status={paymentTypeStatus}
           currencies={currenciesQuery.data ?? []}
@@ -176,12 +179,14 @@ export default function WorkspaceSettingsClient({
 
 function CategoriesBlock({
   workspaceId,
+  workspaceSlug,
   data,
   status,
   onReload,
   apiFetch,
 }: {
   workspaceId: string;
+  workspaceSlug: string;
   data: NormalizedCategory[];
   status: SectionStatus;
   onReload: () => Promise<void>;
@@ -211,7 +216,7 @@ function CategoriesBlock({
       }),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: queryKeys.categories(workspaceId),
+        queryKey: queryKeys.categories(workspaceSlug),
       }),
   });
 
@@ -227,7 +232,7 @@ function CategoriesBlock({
       }),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: queryKeys.categories(workspaceId),
+        queryKey: queryKeys.categories(workspaceSlug),
       }),
   });
 
@@ -236,7 +241,7 @@ function CategoriesBlock({
       apiFetch("/api/dictionaries/categories/", { method: "DELETE" }),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: queryKeys.categories(workspaceId),
+        queryKey: queryKeys.categories(workspaceSlug),
       }),
   });
 
@@ -397,6 +402,7 @@ function CategoriesBlock({
 
 function PaymentTypesBlock({
   workspaceId,
+  workspaceSlug,
   data,
   status,
   currencies,
@@ -406,6 +412,7 @@ function PaymentTypesBlock({
   apiFetch,
 }: {
   workspaceId: string;
+  workspaceSlug: string;
   data: NormalizedPaymentType[];
   status: SectionStatus;
   currencies: NormalizedCurrency[];
@@ -445,7 +452,7 @@ function PaymentTypesBlock({
       }),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: queryKeys.paymentTypes(workspaceId),
+        queryKey: queryKeys.paymentTypes(workspaceSlug),
       }),
   });
 
@@ -463,7 +470,7 @@ function PaymentTypesBlock({
       }),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: queryKeys.paymentTypes(workspaceId),
+        queryKey: queryKeys.paymentTypes(workspaceSlug),
       }),
   });
 
@@ -472,7 +479,7 @@ function PaymentTypesBlock({
       apiFetch(`/api/dictionaries/payment_types/${id}`, { method: "DELETE" }),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: queryKeys.paymentTypes(workspaceId),
+        queryKey: queryKeys.paymentTypes(workspaceSlug),
       }),
   });
 
