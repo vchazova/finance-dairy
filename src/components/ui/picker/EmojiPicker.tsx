@@ -170,7 +170,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
         </button>
 
         {open && (
-          <div className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-72 space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-2xl">
+          <div className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,90vw)] space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-2xl sm:w-72">
             <div className="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.2em] text-[hsl(var(--fg-muted))]">
               <span>Emojis</span>
               {normalizedValue && (
@@ -185,7 +185,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
             </div>
             <div className="rounded-lg border border-dashed border-[hsl(var(--border))] p-2">
               {options.length > 0 ? (
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
                   {options.map((option) => {
                     const displayEmoji = option.emoji ?? option.value;
                     const isActive =
