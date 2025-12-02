@@ -4,18 +4,25 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   AppLayout,
   Badge,
   Button,
   Card,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableEmptyState,
   PageContent,
   PageHeader,
   Skeleton,
 } from "@/components/ui";
 import type { WorkspaceListItem } from "@/types/workspaces";
+import type { WorkspaceInviteListItem } from "@/data/invitedMembers/invitedMembers.repo";
 import { useAuth } from "@/providers/AuthProvider";
 import { useApiFetch } from "@/lib/api/client";
 import CreateWorkspaceDialog from "@/components/workspaces/CreateWorkspaceDialog";
@@ -52,6 +59,40 @@ export default function HomePage() {
       : "Failed to load workspaces"
     : null;
   const showEmptyState = !showSkeleton && !errorMessage && !hasWorkspaces;
+
+  const invitesSummaryQuery = useQuery({
+    queryKey: ["workspace-invites-summary", userId],
+    queryFn: async () => {
+      return apiFetch<PendingInvitePreview[]>(`/api/invites?status=pending`);
+    },
+    enabled: Boolean(userId),
+  });
+
+  const pendingInvites = invitesSummaryQuery.data ?? [];
+  const showInvitesCard = pendingInvites.length > 0;
+  const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
+
+  const inviteActionMutation = useMutation({
+    mutationFn: async ({ inviteId, action }: { inviteId: string; action: "accept" | "decline" }) => {
+      await apiFetch(`/api/invites/${inviteId}`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      });
+    },
+    onMutate: ({ inviteId }) => {
+      setProcessingInviteId(inviteId);
+    },
+    onSettled: async () => {
+      setProcessingInviteId(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["workspace-invites-summary", userId] }),
+        queryClient.invalidateQueries({ queryKey: workspaceQueryKey }),
+      ]);
+    },
+  });
+  const handleInviteAction = (inviteId: string, action: "accept" | "decline") => {
+    inviteActionMutation.mutate({ inviteId, action });
+  };
 
   return (
     <>
@@ -112,12 +153,38 @@ export default function HomePage() {
             </Card>
           </div>
         ) : (
-          <PageContent className="max-w-6xl w-full py-0">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {workspaces.map((workspace) => (
-                <WorkspaceCardItem key={workspace.id} workspace={workspace} />
-              ))}
-            </div>
+          <PageContent className="max-w-6xl w-full space-y-6 py-0">
+            <section>
+              <h2 className="sr-only">Workspaces</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {workspaces.map((workspace) => (
+                  <WorkspaceCardItem key={workspace.id} workspace={workspace} />
+                ))}
+              </div>
+            </section>
+
+            {showInvitesCard && (
+              <section className="rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[hsl(var(--fg))]">
+                      Pending invitations
+                    </h2>
+                    <p className="text-sm text-[hsl(var(--fg-muted))]">
+                      Invites sent to your email that you can accept or decline.
+                    </p>
+                  </div>
+                  <Badge variant="warning" className="text-xs">
+                    {pendingInvites.length}
+                  </Badge>
+                </div>
+                <PendingInvitesTable
+                  invites={pendingInvites}
+                  onAction={handleInviteAction}
+                  processingInviteId={processingInviteId}
+                />
+              </section>
+            )}
           </PageContent>
         )}
       </AppLayout>
@@ -218,4 +285,97 @@ function formatWorkspaceCreatedAt(value?: string) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   return `${day}.${month}.${year}`;
+}
+
+type PendingInvitePreview = WorkspaceInviteListItem & {
+  workspaceName: string;
+  workspaceSlug: string;
+};
+
+function PendingInvitesTable({
+  invites,
+  onAction,
+  processingInviteId,
+}: {
+  invites: PendingInvitePreview[];
+  onAction: (inviteId: string, action: "accept" | "decline") => void;
+  processingInviteId: string | null;
+}) {
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-[hsl(var(--border))]">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableCell header>Invitee</TableCell>
+            <TableCell header>Workspace</TableCell>
+            <TableCell header className="w-28">
+              Role
+            </TableCell>
+            <TableCell header className="w-40">
+              Invited
+            </TableCell>
+            <TableCell header className="w-44 text-center">
+              Actions
+            </TableCell>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {invites.map((invite) => {
+            const isProcessing = processingInviteId === invite.id;
+            return (
+              <TableRow key={invite.id}>
+                <TableCell>
+                  <div className="text-sm font-medium text-[hsl(var(--fg))]">
+                    {invite.inviteeEmail}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm text-[hsl(var(--fg))]">
+                    {invite.workspaceName}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="neutral" className="text-xs capitalize">
+                    {invite.role}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-[hsl(var(--fg-muted))]">
+                  {formatInviteDate(invite.createdAt)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => onAction(invite.id, "accept")}
+                      disabled={isProcessing}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onAction(invite.id, "decline")}
+                      disabled={isProcessing}
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function formatInviteDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return value;
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }

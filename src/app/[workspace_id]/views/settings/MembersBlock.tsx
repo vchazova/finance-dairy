@@ -114,6 +114,13 @@ export function WorkspaceMembersBlock({
   const isLoading = membersQuery.isPending;
   const isRefetching = membersQuery.isRefetching;
   const errorMessage = (membersQuery.error as Error | null)?.message ?? null;
+  const currentUserRole: MemberRole | null = useMemo(() => {
+    const id = session?.user?.id;
+    if (!id) return null;
+    const entry = members.find((member) => member.userId === id);
+    return entry?.role ?? null;
+  }, [members, session?.user?.id]);
+  const canManageInvites = currentUserRole === "owner";
 
   const invitesQuery = useQuery({
     queryKey: queryKeys.workspaceInvites(workspaceSlug),
@@ -195,6 +202,22 @@ export function WorkspaceMembersBlock({
       setInviteFormError(error.message ?? "Failed to send invite");
     },
   });
+  const revokeInviteMutation = useMutation({
+    mutationFn: async (inviteId: string) => {
+      await apiFetch(`/api/workspaces/${workspaceId}/invites?inviteId=${inviteId}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      pushToast({ title: "Invite revoked", variant: "success" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaceInvites(workspaceSlug) });
+    },
+    onError: (error: Error) => {
+      pushToast({
+        title: "Failed to revoke invite",
+        description: error?.message,
+        variant: "danger",
+      });
+    },
+  });
 
   const inviteButtonDisabled = !inviteEmail.trim() || inviteMutation.isPending;
 
@@ -221,7 +244,6 @@ export function WorkspaceMembersBlock({
             </Button>
           </div>
         </div>
-      </div>
 
       {errorMessage && (
         <Alert
@@ -429,14 +451,19 @@ export function WorkspaceMembersBlock({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center">
-                      <IconButton
-                        size="sm"
-                        variant="danger"
-                        disabled
-                        aria-label="Revoke invite (coming soon)"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </IconButton>
+                      {canManageInvites ? (
+                        <IconButton
+                          size="sm"
+                          variant="danger"
+                          disabled={revokeInviteMutation.isPending}
+                          aria-label="Revoke invite"
+                          onClick={() => revokeInviteMutation.mutate(invite.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </IconButton>
+                      ) : (
+                        <span className="text-xs text-[hsl(var(--fg-muted))]">Owner only</span>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -453,6 +480,8 @@ export function WorkspaceMembersBlock({
             )}
           </TableBody>
         </Table>
+      </div>
+
       </div>
 
       <Modal

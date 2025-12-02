@@ -43,4 +43,6 @@ export interface InvitedMembersRepo {
   ): Promise<{ ok: true; invite: WorkspaceInviteListItem } | { ok: false; message: string }>;
   update(id: string | number, input: UpdateInviteInput): Promise<{ ok: true } | { ok: false; message: string }>;
   remove(id: string | number): Promise<{ ok: true } | { ok: false; message: string }>;
+  listByInviteeEmail(email: string, filters?: InviteListFilters): Promise<WorkspaceInviteListItem[]>;
+  getById(id: string | number): Promise<WorkspaceInviteListItem | null>;
 }

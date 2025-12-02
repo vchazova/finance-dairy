@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { AuthResponse, Session } from "@supabase/supabase-js";
@@ -27,6 +28,7 @@ export default function AuthProvider({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
 
@@ -62,6 +64,7 @@ export default function AuthProvider({
 
   const logout = async () => {
     await supabase.auth.signOut();
+    queryClient.clear();
     setSession(null);
     router.push("/auth");
   };

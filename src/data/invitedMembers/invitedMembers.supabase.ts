@@ -118,6 +118,60 @@ export function createInvitedMembersSupabaseRepo(client?: SupabaseClient): Invit
       if (error) return { ok: false, message: error.message } as const;
       return { ok: true } as const;
     },
+    async listByInviteeEmail(email, filters) {
+      let query = supabase
+        .from("invited_members")
+        .select("*")
+        .eq("invitee_email", email.toLowerCase())
+        .order("created_at", { ascending: false });
+      const statusFilter = filters?.status;
+      if (statusFilter) query = query.eq("status", statusFilter);
+
+      const { data, error } = await query;
+      if (error) {
+        console.warn("[invitedMembersRepo] listByInviteeEmail failed", error);
+        return [];
+      }
+
+      return (data ?? []).map((row) => {
+        const parsed = invitedMemberRowSchema.parse(row);
+        return {
+          id: String(parsed.id),
+          workspaceId: String(parsed.workspace_id),
+          inviterUserId: parsed.inviter_user_id,
+          inviteeEmail: parsed.invitee_email,
+          inviteeUserId: parsed.invitee_user_id ?? null,
+          role: parsed.role,
+          status: parsed.status,
+          createdAt: parsed.created_at.toISOString(),
+          acceptedAt: parsed.accepted_at ? parsed.accepted_at.toISOString() : null,
+          expiresAt: parsed.expires_at ? parsed.expires_at.toISOString() : null,
+          message: parsed.message ?? null,
+        };
+      });
+    },
+    async getById(id) {
+      const { data, error } = await supabase.from("invited_members").select("*").eq("id", id).maybeSingle();
+      if (error) {
+        console.warn("[invitedMembersRepo] getById failed", error);
+        return null;
+      }
+      if (!data) return null;
+      const parsed = invitedMemberRowSchema.parse(data);
+      return {
+        id: String(parsed.id),
+        workspaceId: String(parsed.workspace_id),
+        inviterUserId: parsed.inviter_user_id,
+        inviteeEmail: parsed.invitee_email,
+        inviteeUserId: parsed.invitee_user_id ?? null,
+        role: parsed.role,
+        status: parsed.status,
+        createdAt: parsed.created_at.toISOString(),
+        acceptedAt: parsed.accepted_at ? parsed.accepted_at.toISOString() : null,
+        expiresAt: parsed.expires_at ? parsed.expires_at.toISOString() : null,
+        message: parsed.message ?? null,
+      };
+    },
   };
 }
 
