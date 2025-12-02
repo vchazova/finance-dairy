@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ColorPicker, EmojiPicker, PAYMENT_TYPE_EMOJIS } from "@/components/ui";
+import { ColorPicker, EmojiPicker, CATEGORY_EMOJIS, PAYMENT_TYPE_EMOJIS, Modal } from "@/components/ui";
+import { Button } from "@/components/ui/button/Button";
+import { Input } from "@/components/ui/field/Input";
 import { Select } from "@/components/ui/field/Select";
 import {
   AddCategoryForm,
@@ -13,14 +15,9 @@ import {
   type CurrencyDraft,
 } from "@/components/settings/AddCurrencyForm";
 import {
-  EditPaymentTypeRow,
-  type PaymentTypeDraft,
-} from "@/components/settings/EditPaymentTypeRow";
-import {
   DictionaryRow,
   DictionaryTable,
   InlineButton,
-  InlineInput,
   SectionShell,
   type SectionStatus,
 } from "@/components/settings/DictionaryUI";
@@ -36,6 +33,8 @@ import {
   type NormalizedCurrency,
   type NormalizedPaymentType,
 } from "@/entities/dictionaries/normalize";
+
+type PaymentTypeDraft = { name: string; icon: string; defaultCurrencyId: string };
 
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 const SECTION_SPACING = "space-y-4 sm:space-y-5";
@@ -193,6 +192,8 @@ function CategoriesSection({
     color: "",
   });
   const [editId, setEditId] = useState<string | null>(null);
+  const [editModalError, setEditModalError] = useState<string | null>(null);
+  const [editModalSaving, setEditModalSaving] = useState(false);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -244,20 +245,37 @@ function CategoriesSection({
     }
   }
 
-  async function updateCategory(id: string) {
+  const openEditCategory = (row: NormalizedCategory) => {
+    setEditId(row.id);
+    setEditDraft({
+      name: row.name,
+      icon: row.icon || "",
+      color: row.color || "",
+    });
+    setEditModalError(null);
+  };
+
+  const closeEditCategory = () => {
+    setEditId(null);
+    setEditDraft({ name: "", icon: "", color: "" });
+    setEditModalError(null);
+  };
+
+  async function saveCategoryEdit() {
+    if (!editId) return;
     if (!editDraft.name.trim()) {
-      setActionError("Name is required");
+      setEditModalError("Name is required");
       return;
     }
-    setActionError(null);
-    setMutatingId(id);
+    setEditModalError(null);
+    setEditModalSaving(true);
     try {
-      await updateCategoryMutation.mutateAsync({ id, draft: editDraft });
-      setEditId(null);
+      await updateCategoryMutation.mutateAsync({ id: editId, draft: editDraft });
+      closeEditCategory();
     } catch (e: any) {
-      setActionError(e?.message || "Failed to update category");
+      setEditModalError(e?.message || "Failed to update category");
     } finally {
-      setMutatingId(null);
+      setEditModalSaving(false);
     }
   }
 
@@ -290,100 +308,90 @@ function CategoriesSection({
           columns={["Name", "Icon", "Color"]}
           loading={status.loading}
           emptyText="No categories yet."
-          rows={data.map((row) => {
-            const isEditing = editId === row.id;
-            return (
-              <DictionaryRow
-                key={row.id}
-                cells={[
-                  isEditing ? (
-                    <InlineInput
-                      key="name-edit"
-                      value={editDraft.name}
-                      onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))}
+          rows={data.map((row) => (
+            <DictionaryRow
+              key={row.id}
+              cells={[
+                <span key="name" className={`font-medium ${CELL_TEXT}`}>
+                  {row.name}
+                </span>,
+                <span key="icon" className={CELL_TEXT}>
+                  {row.icon || "-"}
+                </span>,
+                row.color ? (
+                  <span
+                    key="color"
+                    className="flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <span
+                      className="h-3.5 w-3.5 rounded-full border border-[hsl(var(--border))]"
+                      style={{ backgroundColor: row.color }}
+                      aria-hidden
                     />
-                  ) : (
-                    <span key="name" className={`font-medium ${CELL_TEXT}`}>
-                      {row.name}
-                    </span>
-                  ),
-                  isEditing ? (
-                    <InlineInput
-                      key="icon-edit"
-                      value={editDraft.icon}
-                      onChange={(v) => setEditDraft((p) => ({ ...p, icon: v }))}
-                    />
-                  ) : (
-                    <span key="icon" className={CELL_TEXT}>
-                      {row.icon || "-"}
-                    </span>
-                  ),
-                  isEditing ? (
-                    <div key="color-edit" className="max-w-[280px]">
-                      <ColorPicker
-                        value={editDraft.color}
-                        onChange={(color) =>
-                          setEditDraft((p) => ({ ...p, color }))
-                        }
-                        allowCustom
-                    className="w-full"
-                    />
-                  </div>
-                ) : row.color ? (
-                    <span key="color" className="flex items-center gap-2 whitespace-nowrap">
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border border-[hsl(var(--border))]"
-                        style={{ backgroundColor: row.color }}
-                        aria-hidden
-                      />
-                      <span className={CELL_TEXT}>{row.color}</span>
-                    </span>
-                  ) : (
-                    <span key="color-empty">-</span>
-                  ),
-                ]}
-                actions={
-                  isEditing ? (
-                    <>
-                      <InlineButton
-                        onClick={() => setEditId(null)}
-                        text="Cancel"
-                        variant="ghost"
-                      />
-                      <InlineButton
-                        onClick={() => updateCategory(row.id)}
-                        text={mutatingId === row.id ? "Saving..." : "Save"}
-                        disabled={mutatingId === row.id}
-                        variant="primary"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <InlineButton
-                        onClick={() => {
-                          setEditId(row.id);
-                          setEditDraft({
-                            name: row.name,
-                            icon: row.icon || "",
-                            color: row.color || "",
-                          });
-                        }}
-                        text="Edit"
-                      />
-                      <InlineButton
-                        onClick={() => setConfirmDeleteId(row.id)}
-                        text={mutatingId === row.id ? "..." : "Delete"}
-                        disabled={mutatingId === row.id}
-                        variant="danger"
-                      />
-                    </>
-                  )
-                }
-              />
-            );
-          })}
+                    <span className={CELL_TEXT}>{row.color}</span>
+                  </span>
+                ) : (
+                  <span key="color-empty">-</span>
+                ),
+              ]}
+              actions={
+                <>
+                  <InlineButton
+                    onClick={() => openEditCategory(row)}
+                    text="Edit"
+                  />
+                  <InlineButton
+                    onClick={() => setConfirmDeleteId(row.id)}
+                    text={mutatingId === row.id ? "..." : "Delete"}
+                    disabled={mutatingId === row.id}
+                    variant="danger"
+                  />
+                </>
+              }
+            />
+          ))}
         />
       </div>
+      <Modal
+        open={Boolean(editId)}
+        onClose={closeEditCategory}
+        title="Edit category"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={closeEditCategory} disabled={editModalSaving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={saveCategoryEdit} disabled={editModalSaving}>
+              {editModalSaving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <Input
+            label="Name"
+            value={editDraft.name}
+            onChange={(e) => setEditDraft((p) => ({ ...p, name: e.target.value }))}
+          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <EmojiPicker
+              label="Icon"
+              value={editDraft.icon}
+              onChange={(icon) => setEditDraft((p) => ({ ...p, icon }))}
+              options={CATEGORY_EMOJIS}
+            />
+            <ColorPicker
+              label="Color"
+              value={editDraft.color}
+              onChange={(color) => setEditDraft((p) => ({ ...p, color }))}
+              allowCustom
+            />
+          </div>
+          {editModalError && (
+            <p className="text-sm text-red-600">{editModalError}</p>
+          )}
+        </div>
+      </Modal>
       <ConfirmDialog
         open={!!confirmDeleteId}
         title="Delete category-"
@@ -426,12 +434,19 @@ function PaymentTypesSection({
   onReloadCurrencies: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
-  const [draft, setDraft] = useState<PaymentTypeDraft>({
+  const [createDraft, setCreateDraft] = useState<PaymentTypeDraft>({
+    name: "",
+    icon: "",
+    defaultCurrencyId: "",
+  });
+  const [editDraft, setEditDraft] = useState<PaymentTypeDraft>({
     name: "",
     icon: "",
     defaultCurrencyId: "",
   });
   const [editId, setEditId] = useState<string | null>(null);
+  const [editModalError, setEditModalError] = useState<string | null>(null);
+  const [editModalSaving, setEditModalSaving] = useState(false);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -488,15 +503,15 @@ function PaymentTypesSection({
   });
 
   async function createPaymentType() {
-    if (!draft.name.trim()) {
+    if (!createDraft.name.trim()) {
       setActionError("Name is required");
       return;
     }
     setActionError(null);
     setMutatingId("new");
     try {
-      await createPaymentTypeMutation.mutateAsync(draft);
-      setDraft({ name: "", icon: "", defaultCurrencyId: "" });
+      await createPaymentTypeMutation.mutateAsync(createDraft);
+      setCreateDraft({ name: "", icon: "", defaultCurrencyId: "" });
     } catch (e: any) {
       setActionError(e?.message || "Failed to create payment method");
     } finally {
@@ -504,20 +519,37 @@ function PaymentTypesSection({
     }
   }
 
-  async function updatePaymentType(id: string, input: PaymentTypeDraft) {
-    if (!input.name.trim()) {
-      setActionError("Name is required");
+  const openEditPaymentType = (row: NormalizedPaymentType) => {
+    setEditId(row.id);
+    setEditDraft({
+      name: row.name,
+      icon: row.icon || "",
+      defaultCurrencyId: row.defaultCurrencyId || "",
+    });
+    setEditModalError(null);
+  };
+
+  const closeEditPaymentType = () => {
+    setEditId(null);
+    setEditDraft({ name: "", icon: "", defaultCurrencyId: "" });
+    setEditModalError(null);
+  };
+
+  async function savePaymentTypeEdit() {
+    if (!editId) return;
+    if (!editDraft.name.trim()) {
+      setEditModalError("Name is required");
       return;
     }
-    setActionError(null);
-    setMutatingId(id);
+    setEditModalError(null);
+    setEditModalSaving(true);
     try {
-      await updatePaymentTypeMutation.mutateAsync({ id, input });
-      setEditId(null);
+      await updatePaymentTypeMutation.mutateAsync({ id: editId, input: editDraft });
+      closeEditPaymentType();
     } catch (e: any) {
-      setActionError(e?.message || "Failed to update payment method");
+      setEditModalError(e?.message || "Failed to update payment method");
     } finally {
-      setMutatingId(null);
+      setEditModalSaving(false);
     }
   }
 
@@ -559,23 +591,23 @@ function PaymentTypesSection({
           <div className="mt-3 space-y-3">
             <LabeledField
               label="Name"
-              value={draft.name}
-              onChange={(v) => setDraft((p) => ({ ...p, name: v }))}
+              value={createDraft.name}
+              onChange={(v) => setCreateDraft((p) => ({ ...p, name: v }))}
               placeholder="Card, Cash..."
             />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <EmojiPicker
                 label="Icon"
-                value={draft.icon}
-                onChange={(icon) => setDraft((p) => ({ ...p, icon }))}
+                value={createDraft.icon}
+                onChange={(icon) => setCreateDraft((p) => ({ ...p, icon }))}
                 options={PAYMENT_TYPE_EMOJIS}
               />
               <Select
                 label="Default currency"
                 options={currencyOptions}
-                value={draft.defaultCurrencyId}
+                value={createDraft.defaultCurrencyId}
                 onChange={(val) =>
-                  setDraft((p) => ({ ...p, defaultCurrencyId: val }))
+                  setCreateDraft((p) => ({ ...p, defaultCurrencyId: val }))
                 }
               />
             </div>
@@ -587,7 +619,7 @@ function PaymentTypesSection({
                 text="Reset"
                 variant="ghost"
                 onClick={() =>
-                  setDraft({ name: "", icon: "", defaultCurrencyId: "" })
+                  setCreateDraft({ name: "", icon: "", defaultCurrencyId: "" })
                 }
               />
               <InlineButton
@@ -605,26 +637,10 @@ function PaymentTypesSection({
           loading={status.loading}
           emptyText="No payment methods yet."
           rows={data.map((row) => {
-            const isEditing = editId === row.id;
             const currentCurrency = row.defaultCurrencyId
               ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code ||
                 row.defaultCurrencyId
               : "-";
-            if (isEditing) {
-              return (
-                <EditPaymentTypeRow
-                  key={row.id}
-                  row={row}
-                  currencies={currencies}
-                  savingId={mutatingId}
-                  onCancel={() => setEditId(null)}
-                  onDelete={() => setConfirmDeleteId(row.id)}
-                  onSave={(draftUpdate) =>
-                    updatePaymentType(row.id, draftUpdate)
-                  }
-                />
-              );
-            }
 
             return (
               <DictionaryRow
@@ -643,14 +659,7 @@ function PaymentTypesSection({
                 actions={
                   <>
                     <InlineButton
-                      onClick={() => {
-                        setEditId(row.id);
-                        setDraft({
-                          name: row.name,
-                          icon: row.icon || "",
-                          defaultCurrencyId: row.defaultCurrencyId || "",
-                        });
-                      }}
+                      onClick={() => openEditPaymentType(row)}
                       text="Edit"
                     />
                     <InlineButton
@@ -666,6 +675,50 @@ function PaymentTypesSection({
           })}
         />
       </div>
+      <Modal
+        open={Boolean(editId)}
+        onClose={closeEditPaymentType}
+        title="Edit payment method"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={closeEditPaymentType} disabled={editModalSaving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={savePaymentTypeEdit} disabled={editModalSaving}>
+              {editModalSaving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <Input
+            label="Name"
+            value={editDraft.name}
+            onChange={(e) =>
+              setEditDraft((p) => ({ ...p, name: e.target.value }))
+            }
+          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <EmojiPicker
+              label="Icon"
+              value={editDraft.icon}
+              onChange={(icon) => setEditDraft((p) => ({ ...p, icon }))}
+              options={PAYMENT_TYPE_EMOJIS}
+            />
+            <Select
+              label="Default currency"
+              options={currencyOptions}
+              value={editDraft.defaultCurrencyId}
+              onChange={(val) =>
+                setEditDraft((p) => ({ ...p, defaultCurrencyId: val }))
+              }
+            />
+          </div>
+          {editModalError && (
+            <p className="text-sm text-red-600">{editModalError}</p>
+          )}
+        </div>
+      </Modal>
       <ConfirmDialog
         open={!!confirmDeleteId}
         title="Delete payment method-"
@@ -706,6 +759,8 @@ function CurrenciesSection({
     symbol: "",
   });
   const [editId, setEditId] = useState<string | null>(null);
+  const [editModalError, setEditModalError] = useState<string | null>(null);
+  const [editModalSaving, setEditModalSaving] = useState(false);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -756,24 +811,41 @@ function CurrenciesSection({
     }
   }
 
-  async function updateCurrency(id: string) {
+  const openEditCurrency = (row: NormalizedCurrency) => {
+    setEditId(row.id);
+    setEditDraft({
+      code: row.code,
+      name: row.name,
+      symbol: row.symbol,
+    });
+    setEditModalError(null);
+  };
+
+  const closeEditCurrency = () => {
+    setEditId(null);
+    setEditDraft({ code: "", name: "", symbol: "" });
+    setEditModalError(null);
+  };
+
+  async function saveCurrencyEdit() {
+    if (!editId) return;
     if (
       !editDraft.code.trim() ||
       !editDraft.name.trim() ||
       !editDraft.symbol.trim()
     ) {
-      setActionError("All fields are mandatory.");
+      setEditModalError("All fields are mandatory.");
       return;
     }
-    setActionError(null);
-    setMutatingId(id);
+    setEditModalError(null);
+    setEditModalSaving(true);
     try {
-      await updateCurrencyMutation.mutateAsync({ id, draft: editDraft });
-      setEditId(null);
+      await updateCurrencyMutation.mutateAsync({ id: editId, draft: editDraft });
+      closeEditCurrency();
     } catch (e: any) {
-      setActionError(e?.message || "Failed to update currency");
+      setEditModalError(e?.message || "Failed to update currency");
     } finally {
-      setMutatingId(null);
+      setEditModalSaving(false);
     }
   }
 
@@ -806,85 +878,90 @@ function CurrenciesSection({
           columns={["Code", "Name", "Symbol"]}
           loading={status.loading}
           emptyText="No currencies yet."
-          rows={data.map((row) => {
-            const isEditing = editId === row.id;
-            return (
-              <DictionaryRow
-                key={row.id}
-                cells={[
-                  isEditing ? (
-                    <InlineInput
-                      key="code-edit"
-                      value={editDraft.code}
-                      onChange={(v) => setEditDraft((p) => ({ ...p, code: v }))}
-                    />
-                  ) : (
-                    <span key="code" className={`font-medium ${CELL_TEXT}`}>
-                      {row.code}
-                    </span>
-                  ),
-                  isEditing ? (
-                    <InlineInput
-                      key="name-edit"
-                      value={editDraft.name}
-                      onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))}
-                    />
-                  ) : (
-                    <span key="name" className={CELL_TEXT}>{row.name}</span>
-                  ),
-                  isEditing ? (
-                    <InlineInput
-                      key="symbol-edit"
-                      value={editDraft.symbol}
-                      onChange={(v) =>
-                        setEditDraft((p) => ({ ...p, symbol: v }))
-                      }
-                    />
-                  ) : (
-                    <span key="symbol" className={CELL_TEXT}>{row.symbol}</span>
-                  ),
-                ]}
-                actions={
-                  isEditing ? (
-                    <>
-                      <InlineButton
-                        onClick={() => setEditId(null)}
-                        text="Cancel"
-                        variant="ghost"
-                      />
-                      <InlineButton
-                        onClick={() => updateCurrency(row.id)}
-                        text={mutatingId === row.id ? "Saving..." : "Save"}
-                        disabled={mutatingId === row.id}
-                        variant="primary"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <InlineButton
-                        onClick={() => {
-                          setEditId(row.id);
-                          setEditDraft({
-                            code: row.code,
-                            name: row.name,
-                            symbol: row.symbol,
-                          });
-                        }}
-                        text="Edit"
-                      />
-                      <InlineButton
-                        onClick={() => setConfirmDeleteId(row.id)}
-                        text={mutatingId === row.id ? "..." : "Delete"}
-                        disabled={mutatingId === row.id}
-                        variant="danger"
-                      />
-                    </>
-                  )
-                }
-              />
-            );
-          })}
+          rows={data.map((row) => (
+            <DictionaryRow
+              key={row.id}
+              cells={[
+                <span key="code" className={`font-medium ${CELL_TEXT}`}>
+                  {row.code}
+                </span>,
+                <span key="name" className={CELL_TEXT}>
+                  {row.name}
+                </span>,
+                <span key="symbol" className={CELL_TEXT}>
+                  {row.symbol}
+                </span>,
+              ]}
+              actions={
+                <>
+                  <InlineButton
+                    onClick={() => openEditCurrency(row)}
+                    text="Edit"
+                  />
+                  <InlineButton
+                    onClick={() => setConfirmDeleteId(row.id)}
+                    text={mutatingId === row.id ? "..." : "Delete"}
+                    disabled={mutatingId === row.id}
+                    variant="danger"
+                  />
+                </>
+              }
+            />
+          ))}
         />
+        <Modal
+          open={Boolean(editId)}
+          onClose={closeEditCurrency}
+          title="Edit currency"
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={closeEditCurrency}
+                disabled={editModalSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={saveCurrencyEdit}
+                disabled={editModalSaving}
+              >
+                {editModalSaving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <Input
+              label="Code"
+              value={editDraft.code}
+              onChange={(e) =>
+                setEditDraft((p) => ({
+                  ...p,
+                  code: e.target.value.toUpperCase(),
+                }))
+              }
+            />
+            <Input
+              label="Name"
+              value={editDraft.name}
+              onChange={(e) =>
+                setEditDraft((p) => ({ ...p, name: e.target.value }))
+              }
+            />
+            <Input
+              label="Symbol"
+              value={editDraft.symbol}
+              onChange={(e) =>
+                setEditDraft((p) => ({ ...p, symbol: e.target.value }))
+              }
+            />
+            {editModalError && (
+              <p className="text-sm text-red-600">{editModalError}</p>
+            )}
+          </div>
+        </Modal>
       </div>
       <ConfirmDialog
         open={!!confirmDeleteId}

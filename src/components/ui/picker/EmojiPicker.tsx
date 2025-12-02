@@ -158,11 +158,6 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
             </span>
             <div className="flex flex-col leading-tight">
               <span className="text-[hsl(var(--fg))]">{previewLabel}</span>
-              {selectedOption && (
-                <span className="text-[0.7rem] text-[hsl(var(--fg-muted))]">
-                  {selectedOption.label}
-                </span>
-              )}
             </div>
           </div>
           <ChevronDown
@@ -190,7 +185,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
             </div>
             <div className="rounded-lg border border-dashed border-[hsl(var(--border))] p-2">
               {options.length > 0 ? (
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-6 gap-2">
                   {options.map((option) => {
                     const displayEmoji = option.emoji ?? option.value;
                     const isActive =
@@ -203,7 +198,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                         title={option.label}
                         onClick={() => handleSelect(option)}
                         className={cn(
-                          "flex h-12 flex-col items-center justify-center rounded-lg border border-transparent bg-white/60 text-xl transition",
+                          "flex h-8 flex-col items-center justify-center rounded-lg border border-transparent bg-white/60 text-xl transition",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--color-primary))]",
                           isActive
                             ? "border-[hsl(var(--color-primary))]"
@@ -214,9 +209,6 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                         disabled={disabled}
                       >
                         <span>{displayEmoji}</span>
-                        <span className="text-[0.65rem] text-[hsl(var(--fg-muted))]">
-                          {option.label}
-                        </span>
                       </button>
                     );
                   })}
