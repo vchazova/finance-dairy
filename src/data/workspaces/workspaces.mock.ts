@@ -69,6 +69,7 @@ export const workspacesRepo: WorkspacesRepo = {
     });
     store.addMember({
       user_id: input.userId,
+      user_email: input.userEmail,
       workspace_id: ws.id,
       role: "owner",
     });

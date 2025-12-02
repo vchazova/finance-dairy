@@ -8,6 +8,7 @@ export const workspaceMemberRowSchema = z.object({
   id: dbId,
   created_at: dbDate,
   user_id: uuid,
+  user_email: z.string().email(),
   workspace_id: dbId,
   role: z.enum(MemberRole),
 });
@@ -16,6 +17,7 @@ export type WorkspaceMember = z.infer<typeof workspaceMemberRowSchema>;
 
 export const workspaceMemberInsertSchema = z.object({
   user_id: uuid,
+  user_email: z.string().email(),
   workspace_id: dbId,
   role: z.enum(MemberRole).default("member"),
 });

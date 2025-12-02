@@ -22,13 +22,15 @@ export const WORKSPACE_MEMBERS = [
     id: 1,
     created_at: "2025-11-12T09:02:00.000Z",
     user_id: "11111111-1111-4111-8111-111111111111",
+    user_email: "owner@example.com",
     workspace_id: 1001,
-    role: "admin",
+    role: "owner",
   },
   {
     id: 2,
     created_at: "2025-11-12T09:02:30.000Z",
     user_id: "22222222-2222-4222-8222-222222222222",
+    user_email: "member@example.com",
     workspace_id: 1001,
     role: "member",
   },
@@ -36,8 +38,9 @@ export const WORKSPACE_MEMBERS = [
     id: 3,
     created_at: "2025-11-12T09:03:00.000Z",
     user_id: "11111111-1111-4111-8111-111111111111",
+    user_email: "owner@example.com",
     workspace_id: 1002,
-    role: "admin",
+    role: "owner",
   },
 ];
 

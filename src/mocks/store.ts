@@ -20,6 +20,7 @@ type WorkspaceMemberRow = {
   id: number;
   created_at: string;
   user_id: string;
+  user_email: string;
   workspace_id: number;
   role: string; // keep flexible for mocks
 };
@@ -129,6 +130,7 @@ export const store = {
 
   addMember(input: {
     user_id: string;
+    user_email: string;
     workspace_id: number;
     role: string;
   }): WorkspaceMemberRow {
@@ -136,6 +138,7 @@ export const store = {
       id: nextId(members),
       created_at: nowIso(),
       user_id: input.user_id,
+      user_email: input.user_email,
       workspace_id: input.workspace_id,
       role: input.role,
     };

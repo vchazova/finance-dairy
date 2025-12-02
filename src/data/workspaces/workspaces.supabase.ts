@@ -101,7 +101,12 @@ export function createWorkspacesSupabaseRepo(client?: SupabaseClient): Workspace
 
       const { error: memErr } = await supabase
         .from("workspace_members")
-        .insert({ workspace_id: ws.id, user_id: input.userId, role: "owner" });
+        .insert({
+          workspace_id: ws.id,
+          user_id: input.userId,
+          user_email: input.userEmail,
+          role: "owner",
+        });
 
       if (memErr) {
         return { ok: false, message: memErr.message };

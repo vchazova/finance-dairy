@@ -51,10 +51,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
     const json = await req.json().catch(() => ({}));
     const userId = json.user_id as string | undefined;
+    const userEmail = json.user_email as string | undefined;
     const role = json.role as MemberRole | undefined;
     if (!userId) return NextResponse.json({ ok: false, message: "user_id required" }, { status: 400 });
+    if (!userEmail) return NextResponse.json({ ok: false, message: "user_email required" }, { status: 400 });
 
-    const result = await repo.add({ workspaceId: idNum, userId, role });
+    const result = await repo.add({ workspaceId: idNum, userId, userEmail, role });
     if (!result.ok) return NextResponse.json({ ok: false, message: result.message }, { status: 400 });
     return NextResponse.json({ ok: true, id: result.id }, { status: 201 });
   } catch (err: any) {

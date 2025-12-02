@@ -20,6 +20,7 @@ export type CreateWorkspaceInput = {
   slug: string;
   description?: string | null;
   userId: string;
+  userEmail: string;
 };
 
 export type CreateWorkspaceResult =

@@ -58,6 +58,13 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
+    const userEmail = user.email?.trim();
+    if (!userEmail) {
+      return NextResponse.json(
+        { ok: false, message: "User email is required to create workspace" },
+        { status: 400 }
+      );
+    }
 
     const slug = await generateUniqueWorkspaceSlug(parsed.data.name, repo);
 
@@ -66,6 +73,7 @@ export async function POST(req: Request) {
       slug,
       description: parsed.data.description ?? null,
       userId: user.id,
+      userEmail,
     });
     if (!result.ok) {
       return NextResponse.json({ ok: false, message: result.message }, { status: 400 });

@@ -18,6 +18,7 @@ export type NormalizedWorkspace = {
 export type NormalizedWorkspaceMember = {
   id: string;
   userId: string;
+  userEmail: string;
   workspaceId: string;
   role: WorkspaceMember["role"];
   raw: WorkspaceMember;
@@ -41,6 +42,7 @@ export function normalizeWorkspaceMemberRow(input: any): NormalizedWorkspaceMemb
   return {
     id: String(parsed.id),
     userId: parsed.user_id,
+    userEmail: parsed.user_email,
     workspaceId: String(parsed.workspace_id),
     role: parsed.role,
     raw: parsed,

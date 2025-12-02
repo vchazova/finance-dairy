@@ -25,6 +25,7 @@ export function createWorkspaceMembersSupabaseRepo(client?: SupabaseClient): Wor
         return {
           id: String(parsed.id),
           userId: parsed.user_id,
+          userEmail: parsed.user_email,
           role: parsed.role,
         };
       });
@@ -34,6 +35,7 @@ export function createWorkspaceMembersSupabaseRepo(client?: SupabaseClient): Wor
       const payload = {
         workspace_id: input.workspaceId,
         user_id: input.userId,
+        user_email: input.userEmail,
         role: input.role ?? "member",
       };
       const { data, error } = await supabase.from("workspace_members").insert(payload).select("id").single();

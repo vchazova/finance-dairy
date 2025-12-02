@@ -3,12 +3,14 @@ import type { MemberRole } from "@/entities/workspaceMembers";
 export type WorkspaceMemberInput = {
   workspaceId: string | number;
   userId: string;
+  userEmail: string;
   role?: MemberRole;
 };
 
 export type WorkspaceMemberListItem = {
   id: string;
   userId: string;
+  userEmail: string;
   role: MemberRole;
 };
 
