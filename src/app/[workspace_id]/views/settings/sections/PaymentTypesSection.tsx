@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button/Button";
 import { Input } from "@/components/ui/field/Input";
@@ -15,7 +16,7 @@ import {
 } from "@/components/settings/DictionaryUI";
 import { ConfirmDialog } from "@/components/settings/ConfirmDialog";
 import type { NormalizedCurrency, NormalizedPaymentType } from "@/entities/dictionaries/normalize";
-import { COMPACT_GRID, CELL_TEXT } from "./constants";
+import { COMPACT_GRID, CELL_TEXT, FORM_COLUMN, TABLE_COLUMN } from "./constants";
 import type { ApiFetcher } from "./types";
 
 export type PaymentTypeDraft = {
@@ -187,104 +188,113 @@ export function PaymentTypesSection({
       onReload={onReload}
     >
       <div className={COMPACT_GRID}>
-        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 sm:p-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Create payment method</h3>
-            <button
-              type="button"
-              onClick={() => onReloadCurrencies()}
-              disabled={currencyStatus.loading}
-              className="text-xs text-[hsl(var(--fg-muted))] underline-offset-4 hover:underline disabled:opacity-60"
-            >
-              {currencyStatus.loading ? "Refreshing..." : "Refresh currencies"}
-            </button>
-          </div>
-          <div className="mt-3 space-y-3">
-            <LabeledField
-              label="Name"
-              value={createDraft.name}
-              onChange={(v) => setCreateDraft((p) => ({ ...p, name: v }))}
-              placeholder="Card, Cash..."
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <EmojiPicker
-                label="Icon"
-                value={createDraft.icon}
-                onChange={(icon) => setCreateDraft((p) => ({ ...p, icon }))}
-                options={PAYMENT_TYPE_EMOJIS}
-              />
-              <Select
-                label="Default currency"
-                options={currencyOptions}
-                value={createDraft.defaultCurrencyId}
-                onChange={(val) =>
-                  setCreateDraft((p) => ({ ...p, defaultCurrencyId: val }))
-                }
-              />
+        <div className={FORM_COLUMN}>
+          <div className="w-full rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Create payment method</h3>
+              <button
+                type="button"
+                onClick={() => onReloadCurrencies()}
+                disabled={currencyStatus.loading}
+                className="text-xs text-[hsl(var(--fg-muted))] underline-offset-4 hover:underline disabled:opacity-60"
+              >
+                {currencyStatus.loading ? "Refreshing..." : "Refresh currencies"}
+              </button>
             </div>
-            {actionError && (
-              <p className="text-sm text-red-600">{actionError}</p>
-            )}
-            <div className="flex items-center justify-end gap-2">
-              <InlineButton
-                text="Reset"
-                variant="ghost"
-                onClick={() =>
-                  setCreateDraft({ name: "", icon: "", defaultCurrencyId: "" })
-                }
+            <div className="mt-3 space-y-3">
+              <LabeledField
+                label="Name"
+                value={createDraft.name}
+                onChange={(v) => setCreateDraft((p) => ({ ...p, name: v }))}
+                placeholder="Card, Cash..."
               />
-              <InlineButton
-                text={mutatingId === "new" ? "Creating..." : "Create"}
-                variant="primary"
-                disabled={mutatingId === "new"}
-                onClick={createPaymentType}
-              />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <EmojiPicker
+                  label="Icon"
+                  value={createDraft.icon}
+                  onChange={(icon) => setCreateDraft((p) => ({ ...p, icon }))}
+                  options={PAYMENT_TYPE_EMOJIS}
+                />
+                <Select
+                  label="Default currency"
+                  options={currencyOptions}
+                  value={createDraft.defaultCurrencyId}
+                  onChange={(val) =>
+                    setCreateDraft((p) => ({ ...p, defaultCurrencyId: val }))
+                  }
+                />
+              </div>
+              {actionError && (
+                <p className="text-sm text-red-600">{actionError}</p>
+              )}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <InlineButton
+                  text="Reset"
+                  variant="ghost"
+                  onClick={() =>
+                    setCreateDraft({ name: "", icon: "", defaultCurrencyId: "" })
+                  }
+                />
+                <InlineButton
+                  text={mutatingId === "new" ? "Creating..." : "Create"}
+                  variant="primary"
+                  disabled={mutatingId === "new"}
+                  onClick={createPaymentType}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <DictionaryTable
-          columns={["Name", "Icon", "Default currency"]}
-          loading={status.loading}
-          emptyText="No payment methods yet."
-          rows={data.map((row) => {
-            const currentCurrency = row.defaultCurrencyId
-              ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code ||
-                row.defaultCurrencyId
-              : "-";
+        <div className={TABLE_COLUMN}>
+          <DictionaryTable
+            columns={["Name", "Icon", "Default currency"]}
+            loading={status.loading}
+            emptyText="No payment methods yet."
+            rows={data.map((row) => {
+              const currentCurrency = row.defaultCurrencyId
+                ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code ||
+                  row.defaultCurrencyId
+                : "-";
 
-            return (
-              <DictionaryRow
-                key={row.id}
-                cells={[
-                  <span className={`font-medium ${CELL_TEXT}`} key="name">
-                    {row.name}
-                  </span>,
-                  <span key="icon" className={CELL_TEXT}>
-                    {row.icon || "-"}
-                  </span>,
-                  <span key="currency" className={CELL_TEXT}>
-                    {currentCurrency}
-                  </span>,
-                ]}
-                actions={
-                  <>
-                    <InlineButton
-                      onClick={() => openEditPaymentType(row)}
-                      text="Edit"
-                    />
-                    <InlineButton
-                      onClick={() => setConfirmDeleteId(row.id)}
-                      text={mutatingId === row.id ? "..." : "Delete"}
-                      disabled={mutatingId === row.id}
-                      variant="danger"
-                    />
-                  </>
-                }
-              />
-            );
-          })}
-        />
+              return (
+                <DictionaryRow
+                  key={row.id}
+                  cells={[
+                    <span className={`font-medium ${CELL_TEXT}`} key="name">
+                      {row.name}
+                    </span>,
+                    <span key="icon" className={CELL_TEXT}>
+                      {row.icon || "-"}
+                    </span>,
+                    <span key="currency" className={CELL_TEXT}>
+                      {currentCurrency}
+                    </span>,
+                  ]}
+                  actions={
+                    <>
+                      <InlineButton
+                        onClick={() => openEditPaymentType(row)}
+                        text="Edit"
+                        icon={<Pencil className="h-4 w-4" aria-hidden />}
+                        iconOnly
+                      />
+                      <InlineButton
+                        onClick={() => setConfirmDeleteId(row.id)}
+                        text="Delete"
+                        disabled={mutatingId === row.id}
+                        variant="danger"
+                        icon={<Trash2 className="h-4 w-4" aria-hidden />}
+                        iconOnly
+                        loading={mutatingId === row.id}
+                      />
+                    </>
+                  }
+                />
+              );
+            })}
+          />
+        </div>
       </div>
       <Modal
         open={Boolean(editId)}

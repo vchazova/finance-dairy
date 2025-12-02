@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/field/Input";
 import { Button } from "@/components/ui/button/Button";
@@ -16,7 +17,7 @@ import { ConfirmDialog } from "@/components/settings/ConfirmDialog";
 import { AddCategoryForm, type CategoryDraft } from "@/components/settings/AddCategoryForm";
 import { queryKeys } from "@/lib/queryKeys";
 import type { NormalizedCategory } from "@/entities/dictionaries/normalize";
-import { COMPACT_GRID, CELL_TEXT } from "./constants";
+import { COMPACT_GRID, CELL_TEXT, FORM_COLUMN, TABLE_COLUMN } from "./constants";
 import type { ApiFetcher } from "./types";
 
 export type CategoriesSectionProps = {
@@ -162,52 +163,64 @@ export function CategoriesSection({
       onReload={onReload}
     >
       <div className={COMPACT_GRID}>
-        <AddCategoryForm onSubmit={createCategory} />
+        <div className={FORM_COLUMN}>
+          <AddCategoryForm onSubmit={createCategory} />
+        </div>
 
-        <DictionaryTable
-          columns={["Name", "Icon", "Color"]}
-          loading={status.loading}
-          emptyText="No categories yet."
-          rows={data.map((row) => (
-            <DictionaryRow
-              key={row.id}
-              cells={[
-                <span key="name" className={`font-medium ${CELL_TEXT}`}>
-                  {row.name}
-                </span>,
-                <span key="icon" className={CELL_TEXT}>
-                  {row.icon || "-"}
-                </span>,
-                row.color ? (
-                  <span
-                    key="color"
-                    className="flex items-center gap-2 whitespace-nowrap"
-                  >
+        <div className={TABLE_COLUMN}>
+          <DictionaryTable
+            columns={["Name", "Icon", "Color"]}
+            loading={status.loading}
+            emptyText="No categories yet."
+            rows={data.map((row) => (
+              <DictionaryRow
+                key={row.id}
+                cells={[
+                  <span key="name" className={`font-medium ${CELL_TEXT}`}>
+                    {row.name}
+                  </span>,
+                  <span key="icon" className={CELL_TEXT}>
+                    {row.icon || "-"}
+                  </span>,
+                  row.color ? (
                     <span
-                      className="h-3.5 w-3.5 rounded-full border border-[hsl(var(--border))]"
-                      style={{ backgroundColor: row.color }}
-                      aria-hidden
+                      key="color"
+                      className="flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <span
+                        className="h-3.5 w-3.5 rounded-full border border-[hsl(var(--border))]"
+                        style={{ backgroundColor: row.color }}
+                        aria-hidden
+                      />
+                      <span className={CELL_TEXT}>{row.color}</span>
+                    </span>
+                  ) : (
+                    <span key="color-empty">-</span>
+                  ),
+                ]}
+                actions={
+                  <>
+                    <InlineButton
+                      onClick={() => openEditCategory(row)}
+                      text="Edit"
+                      icon={<Pencil className="h-4 w-4" aria-hidden />}
+                      iconOnly
                     />
-                    <span className={CELL_TEXT}>{row.color}</span>
-                  </span>
-                ) : (
-                  <span key="color-empty">-</span>
-                ),
-              ]}
-              actions={
-                <>
-                  <InlineButton onClick={() => openEditCategory(row)} text="Edit" />
-                  <InlineButton
-                    onClick={() => setConfirmDeleteId(row.id)}
-                    text={mutatingId === row.id ? "..." : "Delete"}
-                    disabled={mutatingId === row.id}
-                    variant="danger"
-                  />
-                </>
-              }
-            />
-          ))}
-        />
+                    <InlineButton
+                      onClick={() => setConfirmDeleteId(row.id)}
+                      text="Delete"
+                      disabled={mutatingId === row.id}
+                      variant="danger"
+                      icon={<Trash2 className="h-4 w-4" aria-hidden />}
+                      iconOnly
+                      loading={mutatingId === row.id}
+                    />
+                  </>
+                }
+              />
+            ))}
+          />
+        </div>
       </div>
       <Modal
         open={Boolean(editId)}

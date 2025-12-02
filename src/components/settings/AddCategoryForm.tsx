@@ -34,7 +34,7 @@ export function AddCategoryForm({ onSubmit }: { onSubmit: (draft: CategoryDraft)
   }
 
   return (
-    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+    <div className="w-full rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 sm:p-5">
       <h3 className="text-sm font-semibold">Create category</h3>
       <div className="mt-3 space-y-3">
         <Input
@@ -57,7 +57,7 @@ export function AddCategoryForm({ onSubmit }: { onSubmit: (draft: CategoryDraft)
           />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="ghost"

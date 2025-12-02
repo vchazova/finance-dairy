@@ -65,30 +65,41 @@ export function DictionaryTable({
   emptyText: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg))] shadow-sm overflow-visible">
-      <div className="overflow-x-auto overflow-y-visible">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
+    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg))] shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-xs sm:text-sm">
           <thead className="bg-[hsl(var(--card))]">
             <tr>
               {columns.map((col) => (
-                <th key={col} className="px-4 py-2 text-left font-semibold text-[hsl(var(--fg))]">
+                <th
+                  key={col}
+                  className="px-3 py-2 text-left font-semibold text-[hsl(var(--fg))]"
+                >
                   {col}
                 </th>
               ))}
-              <th className="px-4 py-2 text-right font-semibold text-[hsl(var(--fg))]">Actions</th>
+              <th className="w-[72px] px-3 py-2 text-right font-semibold text-[hsl(var(--fg))] sm:w-[120px]">
+                <span className="hidden sm:inline">Actions</span>
+                <span className="text-base leading-none sm:hidden" aria-hidden>
+                  &middot;&middot;&middot;
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr className="border-t border-[hsl(var(--border))]">
-                <td className="px-4 py-3" colSpan={columns.length + 1}>
+                <td className="px-3 py-3" colSpan={columns.length + 1}>
                   Loading...
                 </td>
               </tr>
             )}
             {!loading && rows.length === 0 && (
               <tr className="border-t border-[hsl(var(--border))]">
-                <td className="px-4 py-3 text-[hsl(var(--fg-muted))]" colSpan={columns.length + 1}>
+                <td
+                  className="px-3 py-3 text-[hsl(var(--fg-muted))]"
+                  colSpan={columns.length + 1}
+                >
                   {emptyText}
                 </td>
               </tr>
@@ -101,17 +112,26 @@ export function DictionaryTable({
   );
 }
 
-export function DictionaryRow({ cells, actions }: { cells: ReactNode | ReactNode[]; actions: ReactNode }) {
+export function DictionaryRow({
+  cells,
+  actions,
+}: {
+  cells: ReactNode | ReactNode[];
+  actions: ReactNode;
+}) {
   const list = Array.isArray(cells) ? cells : [cells];
   return (
     <tr className="border-t border-[hsl(var(--border))]">
       {list.map((cell, idx) => (
-        <td key={idx} className="relative overflow-visible px-4 py-2 align-middle text-[hsl(var(--fg))]">
+        <td
+          key={idx}
+          className="relative overflow-visible px-3 py-2 align-middle text-[hsl(var(--fg))]"
+        >
           <div className="relative z-10">{cell}</div>
         </td>
       ))}
-      <td className="px-4 py-2 text-right">
-        <div className="flex justify-end gap-2 text-xs">{actions}</div>
+      <td className="w-[72px] px-3 py-2 text-right sm:w-[120px]">
+        <div className="flex justify-end gap-1.5 text-xs sm:gap-2">{actions}</div>
       </td>
     </tr>
   );
@@ -141,11 +161,17 @@ export function InlineButton({
   variant = "default",
   disabled,
   onClick,
+  icon,
+  iconOnly,
+  loading,
 }: {
   text: string;
   variant?: "primary" | "default" | "ghost" | "danger";
   disabled?: boolean;
   onClick: () => void;
+  icon?: ReactNode;
+  iconOnly?: boolean;
+  loading?: boolean;
 }) {
   return (
     <Button
@@ -153,13 +179,20 @@ export function InlineButton({
       size="sm"
       variant={variant}
       disabled={disabled}
+      loading={loading}
       className={cn(
+        "px-2 text-[0.85rem] sm:px-3",
+        iconOnly && "h-9 w-9 rounded-full p-0",
         variant === "danger" && "border-red-200 text-red-600",
         variant === "default" && "border border-[hsl(var(--border))]"
       )}
       onClick={onClick}
+      aria-label={iconOnly ? text : undefined}
     >
-      {text}
+      {!loading && icon && (
+        <span className={cn(!iconOnly && "-ml-0.5", "text-current")}>{icon}</span>
+      )}
+      {iconOnly ? <span className="sr-only">{text}</span> : text}
     </Button>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button/Button";
 import { Input } from "@/components/ui/field/Input";
@@ -15,7 +16,7 @@ import {
 import { ConfirmDialog } from "@/components/settings/ConfirmDialog";
 import { AddCurrencyForm, type CurrencyDraft } from "@/components/settings/AddCurrencyForm";
 import type { NormalizedCurrency } from "@/entities/dictionaries/normalize";
-import { COMPACT_GRID, CELL_TEXT } from "./constants";
+import { COMPACT_GRID, CELL_TEXT, FORM_COLUMN, TABLE_COLUMN } from "./constants";
 import type { ApiFetcher } from "./types";
 
 export type CurrenciesSectionProps = {
@@ -150,43 +151,52 @@ export function CurrenciesSection({
       onReload={onReload}
     >
       <div className={COMPACT_GRID}>
-        <AddCurrencyForm onSubmit={createCurrency} />
+        <div className={FORM_COLUMN}>
+          <AddCurrencyForm onSubmit={createCurrency} />
+        </div>
 
-        <DictionaryTable
-          columns={["Code", "Name", "Symbol"]}
-          loading={status.loading}
-          emptyText="No currencies yet."
-          rows={data.map((row) => (
-            <DictionaryRow
-              key={row.id}
-              cells={[
-                <span key="code" className={`font-medium ${CELL_TEXT}`}>
-                  {row.code}
-                </span>,
-                <span key="name" className={CELL_TEXT}>
-                  {row.name}
-                </span>,
-                <span key="symbol" className={CELL_TEXT}>
-                  {row.symbol}
-                </span>,
-              ]}
-              actions={
-                <>
-                  <InlineButton
-                    onClick={() => openEditCurrency(row)}
-                    text="Edit"
-                  />
-                  <InlineButton
-                    onClick={() => setConfirmDeleteId(row.id)}
-                    text={mutatingId === row.id ? "..." : "Delete"}
-                    disabled={mutatingId === row.id}
-                    variant="danger"
-                  />
-                </>
-              }
-            />
-          ))}
-        />
+        <div className={TABLE_COLUMN}>
+          <DictionaryTable
+            columns={["Code", "Name", "Symbol"]}
+            loading={status.loading}
+            emptyText="No currencies yet."
+            rows={data.map((row) => (
+              <DictionaryRow
+                key={row.id}
+                cells={[
+                  <span key="code" className={`font-medium ${CELL_TEXT}`}>
+                    {row.code}
+                  </span>,
+                  <span key="name" className={CELL_TEXT}>
+                    {row.name}
+                  </span>,
+                  <span key="symbol" className={CELL_TEXT}>
+                    {row.symbol}
+                  </span>,
+                ]}
+                actions={
+                  <>
+                    <InlineButton
+                      onClick={() => openEditCurrency(row)}
+                      text="Edit"
+                      icon={<Pencil className="h-4 w-4" aria-hidden />}
+                      iconOnly
+                    />
+                    <InlineButton
+                      onClick={() => setConfirmDeleteId(row.id)}
+                      text="Delete"
+                      disabled={mutatingId === row.id}
+                      variant="danger"
+                      icon={<Trash2 className="h-4 w-4" aria-hidden />}
+                      iconOnly
+                      loading={mutatingId === row.id}
+                    />
+                  </>
+                }
+              />
+            ))}
+          />
+        </div>
       </div>
       <Modal
         open={Boolean(editId)}
