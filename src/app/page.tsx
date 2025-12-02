@@ -140,7 +140,7 @@ function WorkspaceCardItem({ workspace }: { workspace: WorkspaceListItem }) {
   const isOwner = workspace.role === "owner";
   const workspacePath = workspace.slug?.trim() || workspace.id;
   const workspaceHref = `/${workspacePath}`;
-  const settingsHref = `${workspaceHref}/settings`;
+  const settingsHref = `${workspaceHref}?mode=settings`;
   return (
     <Link
       href={workspaceHref}

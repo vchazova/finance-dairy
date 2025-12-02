@@ -131,7 +131,8 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                 key={o.value}
                 className="inline-flex items-center gap-1 rounded-lg bg-black/5 px-2 py-1 text-xs text-[hsl(var(--fg))]"
               >
-                {o.label}
+                {o.icon && <span className="text-sm leading-none">{o.icon}</span>}
+                <span>{o.label}</span>
               </span>
             ))}
           </div>
@@ -184,6 +185,9 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                     checked={isSelected}
                     className="h-4 w-4 rounded border-[hsl(var(--border))] text-[hsl(var(--color-primary))]"
                   />
+                  {o.icon && (
+                    <span className="text-lg leading-none">{o.icon}</span>
+                  )}
                   <span>{o.label}</span>
                 </div>
               );

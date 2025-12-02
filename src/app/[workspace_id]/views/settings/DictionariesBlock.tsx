@@ -2,11 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ColorPicker,
-  EmojiPicker,
-  PAYMENT_TYPE_EMOJIS,
-} from "@/components/ui";
+import { ColorPicker, EmojiPicker, PAYMENT_TYPE_EMOJIS } from "@/components/ui";
 import { Select } from "@/components/ui/field/Select";
 import {
   AddCategoryForm,
@@ -42,6 +38,9 @@ import {
 } from "@/entities/dictionaries/normalize";
 
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+const SECTION_SPACING = "space-y-4 sm:space-y-5";
+const COMPACT_GRID = "grid gap-4 sm:gap-5 lg:grid-cols-[280px,1fr]";
+const CELL_TEXT = "block max-w-[220px] truncate text-[0.95em]";
 
 export function WorkspaceDictionariesBlock({
   workspaceId,
@@ -64,7 +63,7 @@ export function WorkspaceDictionariesBlock({
     queryKey: queryKeys.categories(workspaceSlug),
     queryFn: async () => {
       const rows = await apiFetch<any[]>(
-        `/api/dictionaries/categories-workspaceId=${workspaceId}`
+        `/api/dictionaries/categories?workspaceId=${workspaceId}`
       );
       return rows.map((row) => normalizeCategoryRow(row));
     },
@@ -77,7 +76,7 @@ export function WorkspaceDictionariesBlock({
     queryKey: queryKeys.paymentTypes(workspaceSlug),
     queryFn: async () => {
       const rows = await apiFetch<any[]>(
-        `/api/dictionaries/payment_types-workspaceId=${workspaceId}`
+        `/api/dictionaries/payment_types?workspaceId=${workspaceId}`
       );
       return rows.map((row) => normalizePaymentTypeRow(row));
     },
@@ -110,22 +109,44 @@ export function WorkspaceDictionariesBlock({
     error: (currenciesQuery.error as Error | null)?.message ?? null,
   };
 
-  const reloadCategories = () =>
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.categories(workspaceSlug),
-    });
-  const reloadPaymentTypes = () =>
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.paymentTypes(workspaceSlug),
-    });
-  const reloadCurrencies = () =>
-    queryClient.invalidateQueries({ queryKey: queryKeys.currencies });
+  const invalidateCategories = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.categories(workspaceSlug),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.categoryOptions(workspaceSlug),
+      }),
+    ]);
+  const invalidatePaymentTypes = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.paymentTypes(workspaceSlug),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.paymentTypeOptions(workspaceSlug),
+      }),
+    ]);
+  const invalidateCurrencies = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencyOptions }),
+    ]);
+
+  const reloadCategories = async () => {
+    await invalidateCategories();
+  };
+  const reloadPaymentTypes = async () => {
+    await invalidatePaymentTypes();
+  };
+  const reloadCurrencies = async () => {
+    await invalidateCurrencies();
+  };
 
   return (
-    <div className="space-y-6">
+    <div className={SECTION_SPACING}>
       <CategoriesSection
         workspaceId={workspaceId}
-        workspaceSlug={workspaceSlug}
         data={categoriesQuery.data ?? []}
         status={categoryStatus}
         onReload={reloadCategories}
@@ -134,7 +155,6 @@ export function WorkspaceDictionariesBlock({
 
       <PaymentTypesSection
         workspaceId={workspaceId}
-        workspaceSlug={workspaceSlug}
         data={paymentTypesQuery.data ?? []}
         status={paymentStatus}
         currencies={currenciesQuery.data ?? []}
@@ -156,20 +176,17 @@ export function WorkspaceDictionariesBlock({
 
 function CategoriesSection({
   workspaceId,
-  workspaceSlug,
   data,
   status,
   onReload,
   apiFetch,
 }: {
   workspaceId: string;
-  workspaceSlug: string;
   data: NormalizedCategory[];
   status: SectionStatus;
   onReload: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
-  const queryClient = useQueryClient();
   const [editDraft, setEditDraft] = useState<CategoryDraft>({
     name: "",
     icon: "",
@@ -191,10 +208,7 @@ function CategoriesSection({
           color: draft.color.trim() || null,
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.categories(workspaceSlug),
-      }),
+    onSuccess: onReload,
   });
 
   const updateCategoryMutation = useMutation({
@@ -207,10 +221,7 @@ function CategoriesSection({
           color: draft.color.trim() || null,
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.categories(workspaceSlug),
-      }),
+    onSuccess: onReload,
   });
 
   const archiveCategoryMutation = useMutation({
@@ -219,10 +230,7 @@ function CategoriesSection({
         method: "PATCH",
         body: JSON.stringify({ is_archive: true }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.categories(workspaceSlug),
-      }),
+    onSuccess: onReload,
   });
 
   async function createCategory(draft: CategoryDraft) {
@@ -275,7 +283,7 @@ function CategoriesSection({
       status={status}
       onReload={onReload}
     >
-      <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
+      <div className={COMPACT_GRID}>
         <AddCategoryForm onSubmit={createCategory} />
 
         <DictionaryTable
@@ -290,42 +298,48 @@ function CategoriesSection({
                 cells={[
                   isEditing ? (
                     <InlineInput
+                      key="name-edit"
                       value={editDraft.name}
                       onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))}
                     />
                   ) : (
-                    <span className="font-medium">{row.name}</span>
+                    <span key="name" className={`font-medium ${CELL_TEXT}`}>
+                      {row.name}
+                    </span>
                   ),
                   isEditing ? (
                     <InlineInput
+                      key="icon-edit"
                       value={editDraft.icon}
                       onChange={(v) => setEditDraft((p) => ({ ...p, icon: v }))}
                     />
                   ) : (
-                    row.icon || "-"
+                    <span key="icon" className={CELL_TEXT}>
+                      {row.icon || "-"}
+                    </span>
                   ),
                   isEditing ? (
-                    <div className="max-w-[280px]">
+                    <div key="color-edit" className="max-w-[280px]">
                       <ColorPicker
                         value={editDraft.color}
                         onChange={(color) =>
                           setEditDraft((p) => ({ ...p, color }))
                         }
                         allowCustom
-                        className="w-full"
-                      />
-                    </div>
-                  ) : row.color ? (
-                    <span className="flex items-center gap-2">
+                    className="w-full"
+                    />
+                  </div>
+                ) : row.color ? (
+                    <span key="color" className="flex items-center gap-2 whitespace-nowrap">
                       <span
                         className="h-3.5 w-3.5 rounded-full border border-[hsl(var(--border))]"
                         style={{ backgroundColor: row.color }}
                         aria-hidden
                       />
-                      {row.color}
+                      <span className={CELL_TEXT}>{row.color}</span>
                     </span>
                   ) : (
-                    "-"
+                    <span key="color-empty">-</span>
                   ),
                 ]}
                 actions={
@@ -395,7 +409,6 @@ function CategoriesSection({
 
 function PaymentTypesSection({
   workspaceId,
-  workspaceSlug,
   data,
   status,
   currencies,
@@ -405,7 +418,6 @@ function PaymentTypesSection({
   apiFetch,
 }: {
   workspaceId: string;
-  workspaceSlug: string;
   data: NormalizedPaymentType[];
   status: SectionStatus;
   currencies: NormalizedCurrency[];
@@ -414,7 +426,6 @@ function PaymentTypesSection({
   onReloadCurrencies: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
-  const queryClient = useQueryClient();
   const [draft, setDraft] = useState<PaymentTypeDraft>({
     name: "",
     icon: "",
@@ -449,10 +460,7 @@ function PaymentTypesSection({
             : null,
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.paymentTypes(workspaceSlug),
-      }),
+    onSuccess: onReload,
   });
 
   const updatePaymentTypeMutation = useMutation({
@@ -467,10 +475,7 @@ function PaymentTypesSection({
             : null,
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.paymentTypes(workspaceSlug),
-      }),
+    onSuccess: onReload,
   });
 
   const archivePaymentTypeMutation = useMutation({
@@ -479,10 +484,7 @@ function PaymentTypesSection({
         method: "PATCH",
         body: JSON.stringify({ is_archive: true }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.paymentTypes(workspaceSlug),
-      }),
+    onSuccess: onReload,
   });
 
   async function createPaymentType() {
@@ -541,8 +543,8 @@ function PaymentTypesSection({
       status={status}
       onReload={onReload}
     >
-      <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
-        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+      <div className={COMPACT_GRID}>
+        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Create payment method</h3>
             <button
@@ -628,11 +630,15 @@ function PaymentTypesSection({
               <DictionaryRow
                 key={row.id}
                 cells={[
-                  <span className="font-medium" key="name">
+                  <span className={`font-medium ${CELL_TEXT}`} key="name">
                     {row.name}
                   </span>,
-                  row.icon || "-",
-                  currentCurrency,
+                  <span key="icon" className={CELL_TEXT}>
+                    {row.icon || "-"}
+                  </span>,
+                  <span key="currency" className={CELL_TEXT}>
+                    {currentCurrency}
+                  </span>,
                 ]}
                 actions={
                   <>
@@ -694,12 +700,6 @@ function CurrenciesSection({
   onReload: () => Promise<void>;
   apiFetch: ReturnType<typeof useApiFetch>;
 }) {
-  const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<CurrencyDraft>({
-    code: "",
-    name: "",
-    symbol: "",
-  });
   const [editDraft, setEditDraft] = useState<CurrencyDraft>({
     code: "",
     name: "",
@@ -720,8 +720,7 @@ function CurrenciesSection({
           symbol: d.symbol.trim(),
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+    onSuccess: onReload,
   });
 
   const updateCurrencyMutation = useMutation({
@@ -734,8 +733,7 @@ function CurrenciesSection({
           symbol: d.symbol.trim(),
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+    onSuccess: onReload,
   });
 
   const archiveCurrencyMutation = useMutation({
@@ -744,15 +742,13 @@ function CurrenciesSection({
         method: "PATCH",
         body: JSON.stringify({ is_archive: true }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.currencies }),
+    onSuccess: onReload,
   });
 
   async function createCurrency(d: CurrencyDraft) {
     setMutatingId("new");
     try {
       await createCurrencyMutation.mutateAsync(d);
-      setDraft({ code: "", name: "", symbol: "" });
     } catch (e: any) {
       setActionError(e?.message || "Failed to create currency");
     } finally {
@@ -803,7 +799,7 @@ function CurrenciesSection({
       status={status}
       onReload={onReload}
     >
-      <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
+      <div className={COMPACT_GRID}>
         <AddCurrencyForm onSubmit={createCurrency} />
 
         <DictionaryTable
@@ -818,29 +814,34 @@ function CurrenciesSection({
                 cells={[
                   isEditing ? (
                     <InlineInput
+                      key="code-edit"
                       value={editDraft.code}
                       onChange={(v) => setEditDraft((p) => ({ ...p, code: v }))}
                     />
                   ) : (
-                    <span className="font-medium">{row.code}</span>
+                    <span key="code" className={`font-medium ${CELL_TEXT}`}>
+                      {row.code}
+                    </span>
                   ),
                   isEditing ? (
                     <InlineInput
+                      key="name-edit"
                       value={editDraft.name}
                       onChange={(v) => setEditDraft((p) => ({ ...p, name: v }))}
                     />
                   ) : (
-                    row.name
+                    <span key="name" className={CELL_TEXT}>{row.name}</span>
                   ),
                   isEditing ? (
                     <InlineInput
+                      key="symbol-edit"
                       value={editDraft.symbol}
                       onChange={(v) =>
                         setEditDraft((p) => ({ ...p, symbol: v }))
                       }
                     />
                   ) : (
-                    row.symbol
+                    <span key="symbol" className={CELL_TEXT}>{row.symbol}</span>
                   ),
                 ]}
                 actions={

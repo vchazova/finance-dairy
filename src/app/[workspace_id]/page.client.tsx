@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Pencil, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import { WorkspaceLayout } from "@/components/ui/layout/WorkspaceLayout";
-import { Button, Input, TextArea, Select, DatePicker } from "@/components/ui";
+import { Button, Input, TextArea, Select, DatePicker, type SelectOption } from "@/components/ui";
 import { useAuth } from "@/providers/AuthProvider";
 import { useApiFetch } from "@/lib/api/client";
-import { normalizeTransactionRow, toSignedAmount } from "@/entities/transactions/normalize";
+import {
+  normalizeTransactionRow,
+  toSignedAmount,
+} from "@/entities/transactions/normalize";
 import {
   normalizeCategoryRow,
   normalizePaymentTypeRow,
@@ -21,14 +24,21 @@ import {
 } from "@/entities/dictionaries/normalize";
 import { queryKeys } from "@/lib/queryKeys";
 import type { WorkspaceListItem } from "@/types/workspaces";
-import type { WorkspaceTransaction as Tx, WorkspaceViewOption as Option } from "./viewTypes";
+import type {
+  WorkspaceTransaction as Tx,
+  WorkspaceViewOption as Option,
+} from "./viewTypes";
 import TransactionsView from "./views/TransactionsView";
 import AnalyticsView, { type AnalyticsSummary } from "./views/AnalyticsView";
 import SettingsView from "./views/SettingsView";
 type WorkspaceViewMode = "transactions" | "analytics" | "settings";
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
-export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: string }) {
+export default function WorkspaceClientPage({
+  workspaceSlug,
+}: {
+  workspaceSlug: string;
+}) {
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
@@ -42,7 +52,9 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
   const workspaceQuery = useQuery({
     queryKey: queryKeys.workspace(workspaceSlug),
     queryFn: async () => {
-      const list = await apiFetch<WorkspaceListItem[]>(`/api/workspaces?slug=${workspaceSlug}`);
+      const list = await apiFetch<WorkspaceListItem[]>(
+        `/api/workspaces?slug=${workspaceSlug}`
+      );
       return (list ?? [])[0] ?? null;
     },
     enabled: !!session?.user?.id && Boolean(workspaceSlug),
@@ -60,13 +72,19 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
   }, [workspace?.name, workspace?.description]);
 
   const categoriesQuery = useQuery({
-    queryKey: queryKeys.categories(workspaceSlug),
+    queryKey: queryKeys.categoryOptions(workspaceSlug),
     queryFn: async () => {
       if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
-      const rows = await apiFetch<any[]>(`/api/dictionaries/categories?workspaceId=${workspaceIdForQueries}`);
+      const rows = await apiFetch<any[]>(
+        `/api/dictionaries/categories?workspaceId=${workspaceIdForQueries}`
+      );
       return rows.map((row) => {
         const normalized = normalizeCategoryRow(row as NormalizedCategory);
-        return { id: normalized.id, label: normalized.name };
+        return {
+          id: normalized.id,
+          label: normalized.name,
+          icon: normalized.icon ?? undefined,
+        };
       });
     },
     enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
@@ -74,13 +92,22 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
   });
 
   const paymentTypesQuery = useQuery({
-    queryKey: queryKeys.paymentTypes(workspaceSlug),
+    queryKey: queryKeys.paymentTypeOptions(workspaceSlug),
     queryFn: async () => {
       if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
-      const rows = await apiFetch<any[]>(`/api/dictionaries/payment_types?workspaceId=${workspaceIdForQueries}`);
+      const rows = await apiFetch<any[]>(
+        `/api/dictionaries/payment_types?workspaceId=${workspaceIdForQueries}`
+      );
       return rows.map((row) => {
-        const normalized = normalizePaymentTypeRow(row as NormalizedPaymentType);
-        return { id: normalized.id, label: normalized.name };
+        const normalized = normalizePaymentTypeRow(
+          row as NormalizedPaymentType
+        );
+        return {
+          id: normalized.id,
+          label: normalized.name,
+          icon: normalized.icon ?? undefined,
+          defaultCurrencyId: normalized.defaultCurrencyId,
+        };
       });
     },
     enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
@@ -88,7 +115,7 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
   });
 
   const currenciesQuery = useQuery({
-    queryKey: queryKeys.currencies,
+    queryKey: queryKeys.currencyOptions,
     queryFn: async () => {
       const rows = await apiFetch<any[]>(`/api/dictionaries/currencies`);
       return rows.map((row) => {
@@ -112,7 +139,9 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
     queryKey: queryKeys.transactions(workspaceSlug),
     queryFn: async () => {
       if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
-      const rows = await apiFetch<any[]>(`/api/transactions?workspaceId=${workspaceIdForQueries}`);
+      const rows = await apiFetch<any[]>(
+        `/api/transactions?workspaceId=${workspaceIdForQueries}`
+      );
       return rows.map((row) => {
         const normalized = normalizeTransactionRow(row);
         return {
@@ -134,13 +163,18 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
   const transactions = transactionsQuery.data ?? [];
   const analyticsSummary: AnalyticsSummary = useMemo(() => {
     const count = transactions.length;
-    const totalExpenses = transactions.filter((tx) => tx.amount < 0).reduce((sum, tx) => sum + tx.amount, 0);
-    const totalIncome = transactions.filter((tx) => tx.amount > 0).reduce((sum, tx) => sum + tx.amount, 0);
+    const totalExpenses = transactions
+      .filter((tx) => tx.amount < 0)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const totalIncome = transactions
+      .filter((tx) => tx.amount > 0)
+      .reduce((sum, tx) => sum + tx.amount, 0);
     const balance = totalIncome + totalExpenses;
     return { count, totalExpenses, totalIncome, balance };
   }, [transactions]);
   const loadingTransactions = transactionsQuery.isPending;
-  const transactionsError = (transactionsQuery.error as Error | null)?.message ?? null;
+  const transactionsError =
+    (transactionsQuery.error as Error | null)?.message ?? null;
   const workspaceError = workspaceQuery.error as Error | null;
   const workspacePending = workspaceQuery.isPending;
 
@@ -148,15 +182,27 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
   const updateWorkspaceMutation = useMutation({
     mutationFn: async (payload: UpdateWorkspacePayload) => {
       if (!workspace) throw new Error("Workspace not found");
-      const response = await apiFetch<{ ok: boolean; slug?: string }>(`/api/workspaces/${workspace.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
+      const response = await apiFetch<{ ok: boolean; slug?: string }>(
+        `/api/workspaces/${workspace.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }
+      );
       return { ...payload, slug: response?.slug ?? workspace.slug };
     },
     onSuccess: (result) => {
-      queryClient.setQueryData<WorkspaceListItem | null>(queryKeys.workspace(workspaceSlug), (prev) =>
-        prev ? { ...prev, name: result.name, description: result.description ?? null, slug: result.slug } : prev
+      queryClient.setQueryData<WorkspaceListItem | null>(
+        queryKeys.workspace(workspaceSlug),
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                name: result.name,
+                description: result.description ?? null,
+                slug: result.slug,
+              }
+            : prev
       );
       setIsEditingHeader(false);
       setHeaderError(null);
@@ -241,7 +287,11 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
         {[
           { mode: "transactions" as WorkspaceViewMode, label: "Transactions" },
           { mode: "analytics" as WorkspaceViewMode, label: "Analytics" },
-          ...(isOwner ? ([{ mode: "settings" as WorkspaceViewMode, label: "Settings" }] as const) : []),
+          ...(isOwner
+            ? ([
+                { mode: "settings" as WorkspaceViewMode, label: "Settings" },
+              ] as const)
+            : []),
         ].map((tab) => (
           <Link
             key={tab.mode}
@@ -251,7 +301,8 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
                 ? "bg-[hsl(var(--color-primary)/0.2)] text-[hsl(var(--color-primary))] font-semibold"
                 : "text-[hsl(var(--fg-muted))] hover:text-[hsl(var(--fg))] hover:bg-[hsl(var(--border))]/40"
             }`}
-            aria-current={mode === tab.mode ? "page" : undefined}>
+            aria-current={mode === tab.mode ? "page" : undefined}
+          >
             {tab.label}
           </Link>
         ))}
@@ -296,7 +347,9 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
       />
     ) : (
       <div>
-        <div className="text-xl font-semibold text-[hsl(var(--fg))]">{workspace.name}</div>
+        <div className="text-xl font-semibold text-[hsl(var(--fg))]">
+          {workspace.name}
+        </div>
         <p className="text-sm text-[hsl(var(--fg-muted))]">
           Created on {new Date(workspace.createdAt).toLocaleDateString()}
         </p>
@@ -318,7 +371,10 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
       ),
       analytics: <AnalyticsView summary={analyticsSummary} />,
       settings: (
-        <SettingsView workspaceSlug={workspaceSlug} workspaceId={resolvedWorkspaceId} />
+        <SettingsView
+          workspaceSlug={workspaceSlug}
+          workspaceId={resolvedWorkspaceId}
+        />
       ),
     };
 
@@ -327,7 +383,8 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
         title={headerNode}
         description={layoutDescription}
         tabs={tabs}
-        actions={actions}>
+        actions={actions}
+      >
         {contentByMode[mode]}
       </WorkspaceLayout>
     );
@@ -357,9 +414,7 @@ function AddTransactionButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
-        ADD transaction
-      </Button>
+      <Button onClick={() => setOpen(true)}>ADD transaction</Button>
       {open && (
         <CreateTransactionDialog
           onClose={() => setOpen(false)}
@@ -409,20 +464,35 @@ function WorkspaceHeaderEditor({
     return (
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xl font-semibold text-[hsl(var(--fg))]">{displayName}</span>
-        <Button size="sm" variant="ghost" onClick={onStartEdit} className="gap-1">
-          <Pencil className="h-4 w-4" />
+          <span className="text-xl font-semibold text-[hsl(var(--fg))]">
+            {displayName}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onStartEdit}
+            className="gap-1"
+          >
+            <Pencil className="h-4 w-4" />
           </Button>
         </div>
-        <p className="text-sm text-[hsl(var(--fg-muted))]">{displayDescription}</p>
-        <p className="text-xs text-[hsl(var(--fg-muted))]">Created on {new Date(createdAt).toLocaleDateString()}</p>
+        <p className="text-sm text-[hsl(var(--fg-muted))]">
+          {displayDescription}
+        </p>
+        <p className="text-xs text-[hsl(var(--fg-muted))]">
+          Created on {new Date(createdAt).toLocaleDateString()}
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3 text-[hsl(var(--fg))]">
-      <Input value={nameValue} onChange={(event) => onNameChange(event.target.value)} placeholder="Workspace name" />
+      <Input
+        value={nameValue}
+        onChange={(event) => onNameChange(event.target.value)}
+        placeholder="Workspace name"
+      />
       <TextArea
         value={descriptionValue}
         onChange={(event) => onDescriptionChange(event.target.value)}
@@ -459,7 +529,9 @@ function CreateTransactionDialog({
 }) {
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
   const [categoryId, setCategoryId] = useState<string>("");
   const [paymentTypeId, setPaymentTypeId] = useState<string>("");
   const [currencyId, setCurrencyId] = useState<string>("");
@@ -467,18 +539,31 @@ function CreateTransactionDialog({
   const [amount, setAmount] = useState<string>("");
   const [comment, setComment] = useState<string>("");
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const categoryOptions = useMemo(
-    () => categories.map((c) => ({ value: c.id, label: c.label })),
+  const categoryOptions = useMemo<SelectOption[]>(
+    () =>
+      categories.map((c) => ({
+        value: c.id,
+        label: c.label,
+        icon: c.icon ?? undefined,
+      })),
     [categories]
   );
-  const paymentTypeOptions = useMemo(
-    () => paymentTypes.map((p) => ({ value: p.id, label: p.label })),
+  const paymentTypeOptions = useMemo<SelectOption[]>(
+    () =>
+      paymentTypes.map((p) => ({
+        value: p.id,
+        label: p.label,
+        icon: p.icon ?? undefined,
+      })),
     [paymentTypes]
   );
   const currencyOptions = useMemo(
     () => currencies.map((c) => ({ value: c.id, label: c.label })),
     [currencies]
   );
+  const hasCategoryOptions = categoryOptions.length > 0;
+  const hasPaymentTypeOptions = paymentTypeOptions.length > 0;
+  const hasCurrencyOptions = currencyOptions.length > 0;
   const typeOptions = useMemo(
     () => [
       { value: "expense", label: "Expense" },
@@ -488,10 +573,53 @@ function CreateTransactionDialog({
   );
 
   useEffect(() => {
-    if (!categoryId && categories.length) setCategoryId(categories[0].id);
-    if (!paymentTypeId && paymentTypes.length) setPaymentTypeId(paymentTypes[0].id);
-    if (!currencyId && currencies.length) setCurrencyId(currencies[0].id);
-  }, [categories, paymentTypes, currencies, categoryId, paymentTypeId, currencyId]);
+    if (!categoryId && categories.length) {
+      setCategoryId(categories[0].id);
+    }
+  }, [categories, categoryId]);
+
+  const paymentTypeDefaults = useMemo(() => {
+    const map = new Map<string, string>();
+    paymentTypes.forEach((type) => {
+      if (type.defaultCurrencyId) {
+        map.set(type.id, String(type.defaultCurrencyId));
+      }
+    });
+    return map;
+  }, [paymentTypes]);
+
+  const handlePaymentTypeChange = useCallback(
+    (nextId: string) => {
+      setPaymentTypeId(nextId);
+      if (!nextId) return;
+      const defaultCurrency = paymentTypeDefaults.get(nextId);
+      if (defaultCurrency) {
+        setCurrencyId(defaultCurrency);
+      }
+    },
+    [paymentTypeDefaults]
+  );
+
+  useEffect(() => {
+    if (!paymentTypeId && paymentTypes.length) {
+      const nextId = paymentTypes[0].id;
+      setPaymentTypeId(nextId);
+      const defaultCurrency = paymentTypeDefaults.get(nextId);
+      if (defaultCurrency) {
+        setCurrencyId(defaultCurrency);
+        return;
+      }
+    }
+    if (!currencyId && currencies.length) {
+      setCurrencyId(currencies[0].id);
+    }
+  }, [
+    paymentTypes,
+    paymentTypeId,
+    paymentTypeDefaults,
+    currencies,
+    currencyId,
+  ]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -512,14 +640,19 @@ function CreateTransactionDialog({
         id: String(json?.id ?? Math.random().toString(36).slice(2)),
         date: variables.date,
         categoryId: String(variables.category_id),
-        categoryName: categories.find((c) => c.id === String(variables.category_id))?.label,
+        categoryName: categories.find(
+          (c) => c.id === String(variables.category_id)
+        )?.label,
         paymentTypeId: String(variables.payment_type_id),
         currencyId: String(variables.currency_id),
         isDecrease: variables.is_decrease,
         amount: toSignedAmount(Number(variables.amount), variables.is_decrease),
         comment: variables.comment ?? null,
       };
-      queryClient.setQueryData<Tx[]>(queryKeys.transactions(workspaceSlug), (prev = []) => [item, ...(prev ?? [])]);
+      queryClient.setQueryData<Tx[]>(
+        queryKeys.transactions(workspaceSlug),
+        (prev = []) => [item, ...(prev ?? [])]
+      );
     },
   });
 
@@ -528,7 +661,8 @@ function CreateTransactionDialog({
   async function submit() {
     if (submitting) return;
     const value = parseFloat(amount);
-    if (Number.isNaN(value) || !categoryId || !paymentTypeId || !currencyId) return;
+    if (Number.isNaN(value) || !categoryId || !paymentTypeId || !currencyId)
+      return;
     setSubmitError(null);
     try {
       const payload = {
@@ -557,7 +691,8 @@ function CreateTransactionDialog({
           <button
             onClick={onClose}
             className="rounded-lg p-1 text-[hsl(var(--fg-muted))] hover:bg-[hsl(var(--card))]"
-            aria-label="Close">
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -567,18 +702,46 @@ function CreateTransactionDialog({
               {submitError}
             </div>
           )}
-          <DatePicker label="Date" value={date} onChange={(val) => setDate(val)} />
+          <DatePicker
+            label="Date"
+            value={date}
+            onChange={(val) => setDate(val)}
+          />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Select label="Category" value={categoryId} onChange={setCategoryId} options={categoryOptions} />
+            <Select
+              label="Category"
+              value={categoryId}
+              onChange={setCategoryId}
+              options={categoryOptions}
+              placeholder={
+                hasCategoryOptions ? "Select category" : "No options available"
+              }
+              disabled={!hasCategoryOptions}
+            />
             <Select
               label="Payment Type"
               value={paymentTypeId}
-              onChange={setPaymentTypeId}
+              onChange={handlePaymentTypeChange}
               options={paymentTypeOptions}
+              placeholder={
+                hasPaymentTypeOptions
+                  ? "Select payment type"
+                  : "No options available"
+              }
+              disabled={!hasPaymentTypeOptions}
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Select label="Currency" value={currencyId} onChange={setCurrencyId} options={currencyOptions} />
+            <Select
+              label="Currency"
+              value={currencyId}
+              onChange={setCurrencyId}
+              options={currencyOptions}
+              placeholder={
+                hasCurrencyOptions ? "Select currency" : "No options available"
+              }
+              disabled={!hasCurrencyOptions}
+            />
             <Select
               label="Type"
               value={isDecrease ? "expense" : "income"}

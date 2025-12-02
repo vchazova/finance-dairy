@@ -6,7 +6,12 @@ import {
   type FieldProps,
 } from "@/components/ui/field/FieldWrapper";
 
-export type SelectOption = { value: string; label: string; disabled?: boolean };
+export type SelectOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+  icon?: string;
+};
 export type SelectProps = FieldProps & {
   options: SelectOption[];
   value?: string;
@@ -63,10 +68,11 @@ export const Select: React.FC<SelectProps> = ({
   const [activeIndex, setActiveIndex] = React.useState<number>(-1);
   const rootRef = useOutside(() => setOpen(false));
 
-  const currentLabel = React.useMemo(
-    () => options.find((o) => o.value === selected)?.label,
+  const currentOption = React.useMemo(
+    () => options.find((o) => o.value === selected),
     [options, selected]
   );
+  const currentLabel = currentOption?.label;
 
   function commit(val: string) {
     if (!isControlled) setInternal(val);
@@ -180,7 +186,15 @@ export const Select: React.FC<SelectProps> = ({
             className
           )}
         >
-          <span className={cn(!currentLabel && "text-[hsl(var(--fg-muted))]")}>
+          <span
+            className={cn(
+              "flex items-center gap-2",
+              !currentLabel && "text-[hsl(var(--fg-muted))]"
+            )}
+          >
+            {currentOption?.icon && (
+              <span className="text-lg leading-none">{currentOption.icon}</span>
+            )}
             {currentLabel ?? placeholder}
           </span>
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-block">
@@ -238,6 +252,9 @@ export const Select: React.FC<SelectProps> = ({
                     o.disabled && "opacity-40 cursor-not-allowed"
                   )}
                 >
+                  {o.icon && (
+                    <span className="text-lg leading-none">{o.icon}</span>
+                  )}
                   <span>{o.label}</span>
                 </div>
               );

@@ -1,6 +1,8 @@
 export type WorkspaceViewOption = {
   id: string;
   label: string;
+  icon?: string | null;
+  defaultCurrencyId?: string | null;
 };
 
 export type WorkspaceTransaction = {

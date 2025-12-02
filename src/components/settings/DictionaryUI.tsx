@@ -65,8 +65,8 @@ export function DictionaryTable({
   emptyText: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg))] shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg))] shadow-sm overflow-visible">
+      <div className="overflow-x-auto overflow-y-visible">
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead className="bg-[hsl(var(--card))]">
             <tr>
@@ -106,8 +106,8 @@ export function DictionaryRow({ cells, actions }: { cells: ReactNode | ReactNode
   return (
     <tr className="border-t border-[hsl(var(--border))]">
       {list.map((cell, idx) => (
-        <td key={idx} className="px-4 py-2 align-middle text-[hsl(var(--fg))]">
-          {cell}
+        <td key={idx} className="relative overflow-visible px-4 py-2 align-middle text-[hsl(var(--fg))]">
+          <div className="relative z-10">{cell}</div>
         </td>
       ))}
       <td className="px-4 py-2 text-right">
@@ -163,4 +163,3 @@ export function InlineButton({
     </Button>
   );
 }
-
