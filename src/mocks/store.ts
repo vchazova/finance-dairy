@@ -30,6 +30,7 @@ type CurrencyRow = {
   code: string;
   name: string;
   symbol: string;
+  is_archive: boolean;
 };
 
 type CategoryRow = {
@@ -39,6 +40,7 @@ type CategoryRow = {
   icon: string | null;
   color: string | null;
   workspace_id: number;
+  is_archive: boolean;
 };
 
 type PaymentTypeRow = {
@@ -48,6 +50,7 @@ type PaymentTypeRow = {
   icon: string | null;
   default_currency_id: number | null;
   workspace_id: number;
+  is_archive: boolean;
 };
 
 type TransactionRow = {
@@ -67,9 +70,9 @@ type TransactionRow = {
 
 const workspaces: WorkspaceRow[] = [...SEED_WORKSPACES];
 const members: WorkspaceMemberRow[] = [...SEED_MEMBERS];
-const currencies: CurrencyRow[] = [...SEED_CURRENCIES] as any;
-const paymentTypes: PaymentTypeRow[] = [...SEED_PAYMENT_TYPES] as any;
-const categories: CategoryRow[] = [...SEED_CATEGORIES] as any;
+const currencies: CurrencyRow[] = [...SEED_CURRENCIES];
+const paymentTypes: PaymentTypeRow[] = [...SEED_PAYMENT_TYPES];
+const categories: CategoryRow[] = [...SEED_CATEGORIES];
 const transactions: TransactionRow[] = SEED_TRANSACTIONS.map((t) => ({
   ...t,
   amount: String(t.amount),
@@ -148,13 +151,14 @@ export const store = {
       code: input.code,
       name: input.name,
       symbol: input.symbol,
+      is_archive: false,
     };
     currencies.push(row);
     return row;
   },
   updateCurrency(
     id: number,
-    patch: Partial<Pick<CurrencyRow, "code" | "name" | "symbol">>
+    patch: Partial<Pick<CurrencyRow, "code" | "name" | "symbol" | "is_archive">>
   ): CurrencyRow | null {
     const idx = currencies.findIndex((c) => c.id === id);
     if (idx === -1) return null;
@@ -164,7 +168,7 @@ export const store = {
   removeCurrency(id: number): boolean {
     const idx = currencies.findIndex((c) => c.id === id);
     if (idx === -1) return false;
-    currencies.splice(idx, 1);
+    currencies[idx] = { ...currencies[idx], is_archive: true };
     return true;
   },
 
@@ -182,13 +186,14 @@ export const store = {
       icon: input.icon ?? null,
       color: input.color ?? null,
       workspace_id: input.workspace_id,
+      is_archive: false,
     };
     categories.push(row);
     return row;
   },
   updateCategory(
     id: number,
-    patch: Partial<Pick<CategoryRow, "name" | "icon" | "color">>
+    patch: Partial<Pick<CategoryRow, "name" | "icon" | "color" | "is_archive">>
   ): CategoryRow | null {
     const idx = categories.findIndex((c) => c.id === id);
     if (idx === -1) return null;
@@ -198,7 +203,7 @@ export const store = {
   removeCategory(id: number): boolean {
     const idx = categories.findIndex((c) => c.id === id);
     if (idx === -1) return false;
-    categories.splice(idx, 1);
+    categories[idx] = { ...categories[idx], is_archive: true };
     return true;
   },
 
@@ -216,13 +221,14 @@ export const store = {
       icon: input.icon ?? null,
       default_currency_id: input.default_currency_id ?? null,
       workspace_id: input.workspace_id,
+      is_archive: false,
     };
     paymentTypes.push(row);
     return row;
   },
   updatePaymentType(
     id: number,
-    patch: Partial<Pick<PaymentTypeRow, "name" | "icon" | "default_currency_id">>
+    patch: Partial<Pick<PaymentTypeRow, "name" | "icon" | "default_currency_id" | "is_archive">>
   ): PaymentTypeRow | null {
     const idx = paymentTypes.findIndex((p) => p.id === id);
     if (idx === -1) return null;
@@ -232,7 +238,7 @@ export const store = {
   removePaymentType(id: number): boolean {
     const idx = paymentTypes.findIndex((p) => p.id === id);
     if (idx === -1) return false;
-    paymentTypes.splice(idx, 1);
+    paymentTypes[idx] = { ...paymentTypes[idx], is_archive: true };
     return true;
   },
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button/Button";
 import { Input } from "@/components/ui/field/Input";
 import { cn } from "@/components/ui/utils/cn";
@@ -35,12 +36,14 @@ export function SectionShell({
             onClick={() => onReload()}
             disabled={status.loading}
             size="sm"
-            className="border border-[hsl(var(--border))] bg-transparent hover:bg-[hsl(var(--card))]"
+            variant="default"
+            loading={status.loading}
+            leftIcon={!status.loading ? <RotateCcw className="h-4 w-4" aria-hidden /> : undefined}
           >
-            {status.loading ? "Обновляем..." : "Обновить"}
+            {status.loading ? "Refreshing..." : "Refresh"}
           </Button>
           <span className="rounded-full bg-[hsl(var(--card))] px-3 py-1 text-xs text-[hsl(var(--fg-muted))]">
-            {count} шт.
+            {count} items
           </span>
         </div>
       </div>
@@ -62,24 +65,24 @@ export function DictionaryTable({
   emptyText: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[hsl(var(--border))]">
+    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg))] shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead className="bg-[hsl(var(--card))]">
             <tr>
               {columns.map((col) => (
-                <th key={col} className="px-4 py-2 text-left">
+                <th key={col} className="px-4 py-2 text-left font-semibold text-[hsl(var(--fg))]">
                   {col}
                 </th>
               ))}
-              <th className="px-4 py-2 text-right">Действия</th>
+              <th className="px-4 py-2 text-right font-semibold text-[hsl(var(--fg))]">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr className="border-t border-[hsl(var(--border))]">
                 <td className="px-4 py-3" colSpan={columns.length + 1}>
-                  Загрузка...
+                  Loading...
                 </td>
               </tr>
             )}
@@ -160,3 +163,4 @@ export function InlineButton({
     </Button>
   );
 }
+

@@ -12,6 +12,7 @@ export type NormalizedCurrency = {
   code: string;
   name: string;
   symbol: string;
+  isArchived: boolean;
   raw: Currency;
 };
 
@@ -21,6 +22,7 @@ export type NormalizedCategory = {
   icon: string | null;
   color: string | null;
   workspaceId: string;
+  isArchived: boolean;
   raw: Category;
 };
 
@@ -30,6 +32,7 @@ export type NormalizedPaymentType = {
   icon: string | null;
   defaultCurrencyId: string | null;
   workspaceId: string;
+  isArchived: boolean;
   raw: PaymentType;
 };
 
@@ -40,6 +43,7 @@ export function normalizeCurrencyRow(input: any): NormalizedCurrency {
     code: parsed.code,
     name: parsed.name,
     symbol: parsed.symbol,
+    isArchived: parsed.is_archive,
     raw: parsed,
   };
 }
@@ -52,6 +56,7 @@ export function normalizeCategoryRow(input: any): NormalizedCategory {
     icon: parsed.icon ?? null,
     color: parsed.color ?? null,
     workspaceId: String(parsed.workspace_id),
+    isArchived: parsed.is_archive,
     raw: parsed,
   };
 }
@@ -67,6 +72,7 @@ export function normalizePaymentTypeRow(input: any): NormalizedPaymentType {
         ? null
         : String(parsed.default_currency_id),
     workspaceId: String(parsed.workspace_id),
+    isArchived: parsed.is_archive,
     raw: parsed,
   };
 }

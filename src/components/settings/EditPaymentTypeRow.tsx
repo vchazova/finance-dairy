@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Select } from "@/components/ui/field/Select";
+import { EmojiPicker, PAYMENT_TYPE_EMOJIS } from "@/components/ui";
 import { InlineButton, InlineInput } from "@/components/settings/DictionaryUI";
 import type { NormalizedCurrency, NormalizedPaymentType } from "@/entities/dictionaries/normalize";
 
@@ -29,7 +30,7 @@ export function EditPaymentTypeRow({
   });
 
   const currencyOptions = useMemo(
-    () => [{ value: "", label: "Не выбрана" }, ...currencies.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+    () => [{ value: "", label: "Not selected" }, ...currencies.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))],
     [currencies]
   );
 
@@ -39,7 +40,14 @@ export function EditPaymentTypeRow({
         <InlineInput value={draft.name} onChange={(v) => setDraft((p) => ({ ...p, name: v }))} />
       </td>
       <td className="px-4 py-2 align-middle text-[hsl(var(--fg-muted))]">
-        <InlineInput value={draft.icon} onChange={(v) => setDraft((p) => ({ ...p, icon: v }))} />
+        <div className="max-w-[220px]">
+          <EmojiPicker
+            value={draft.icon}
+            onChange={(icon) => setDraft((p) => ({ ...p, icon }))}
+            options={PAYMENT_TYPE_EMOJIS}
+            className="w-full"
+          />
+        </div>
       </td>
       <td className="px-4 py-2 align-middle text-[hsl(var(--fg-muted))]">
         <Select
@@ -50,15 +58,15 @@ export function EditPaymentTypeRow({
       </td>
       <td className="px-4 py-2 text-right">
         <div className="flex justify-end gap-2 text-xs">
-          <InlineButton text="Отмена" variant="ghost" onClick={onCancel} />
+          <InlineButton text="Cancel" variant="ghost" onClick={onCancel} />
           <InlineButton
-            text={savingId === row.id ? "Сохраняем..." : "Сохранить"}
+            text={savingId === row.id ? "Saving..." : "Save"}
             variant="primary"
             disabled={savingId === row.id}
             onClick={() => onSave(draft)}
           />
           <InlineButton
-            text={savingId === row.id ? "..." : "Удалить"}
+            text={savingId === row.id ? "..." : "Delete"}
             variant="danger"
             disabled={savingId === row.id}
             onClick={onDelete}

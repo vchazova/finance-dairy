@@ -3,22 +3,18 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button/Button";
 import { Input } from "@/components/ui/field/Input";
-import { ColorPicker, EmojiPicker } from "@/components/ui";
+import { ColorPicker, EmojiPicker, CATEGORY_EMOJIS } from "@/components/ui";
 
 export type CategoryDraft = { name: string; icon: string; color: string };
 
-export function AddCategoryForm({
-  onSubmit,
-}: {
-  onSubmit: (draft: CategoryDraft) => Promise<void>;
-}) {
+export function AddCategoryForm({ onSubmit }: { onSubmit: (draft: CategoryDraft) => Promise<void> }) {
   const [draft, setDraft] = useState<CategoryDraft>({ name: "", icon: "", color: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit() {
     if (!draft.name.trim()) {
-      setError("Название обязательно");
+      setError("Name is required");
       return;
     }
     setLoading(true);
@@ -31,7 +27,7 @@ export function AddCategoryForm({
       });
       setDraft({ name: "", icon: "", color: "" });
     } catch (e: any) {
-      setError(e?.message || "Не удалось создать категорию");
+      setError(e?.message || "Failed to create category");
     } finally {
       setLoading(false);
     }
@@ -39,22 +35,23 @@ export function AddCategoryForm({
 
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-      <h3 className="text-sm font-semibold">Добавить категорию</h3>
+      <h3 className="text-sm font-semibold">Create category</h3>
       <div className="mt-3 space-y-3">
         <Input
-          label="Название"
-          placeholder="Еда, Транспорт..."
+          label="Name"
+          placeholder="Groceries, Salary..."
           value={draft.name}
           onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
         />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <EmojiPicker
-            label="Иконка"
+            label="Icon"
             value={draft.icon}
             onChange={(icon) => setDraft((p) => ({ ...p, icon }))}
+            options={CATEGORY_EMOJIS}
           />
           <ColorPicker
-            label="Цвет"
+            label="Color"
             value={draft.color}
             onChange={(color) => setDraft((p) => ({ ...p, color }))}
           />
@@ -68,16 +65,10 @@ export function AddCategoryForm({
             className="border border-[hsl(var(--border))]"
             onClick={() => setDraft({ name: "", icon: "", color: "" })}
           >
-            Сбросить
+            Reset
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? "Сохранение..." : "Добавить"}
+          <Button type="button" variant="primary" size="sm" onClick={handleSubmit} disabled={loading}>
+            {loading ? "Saving..." : "Create"}
           </Button>
         </div>
       </div>

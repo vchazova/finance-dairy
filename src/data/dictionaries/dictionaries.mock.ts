@@ -19,7 +19,10 @@ import {
 
 export const dictionariesRepo: DictionariesRepo = {
   async listCurrencies(): Promise<Currency[]> {
-    return store.getCurrencies().map((c) => currencyRowSchema.parse(c));
+    return store
+      .getCurrencies()
+      .filter((c) => !c.is_archive)
+      .map((c) => currencyRowSchema.parse(c));
   },
   async getCurrency(id): Promise<Currency | null> {
     const idNum = typeof id === "string" ? Number(id) : id;
@@ -46,8 +49,15 @@ export const dictionariesRepo: DictionariesRepo = {
     const idNum = typeof workspaceId === "string" ? Number(workspaceId) : workspaceId;
     return store
       .getCategories()
-      .filter((c) => c.workspace_id === idNum)
-      .map((c) => ({ id: c.id, name: c.name, icon: c.icon ?? null, color: c.color ?? null }));
+      .filter((c) => c.workspace_id === idNum && !c.is_archive)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon ?? null,
+        color: c.color ?? null,
+        workspace_id: c.workspace_id,
+        is_archive: c.is_archive,
+      }));
   },
   async getCategory(id): Promise<Category | null> {
     const idNum = typeof id === "string" ? Number(id) : id;
@@ -77,12 +87,14 @@ export const dictionariesRepo: DictionariesRepo = {
     const idNum = typeof workspaceId === "string" ? Number(workspaceId) : workspaceId;
     return store
       .getPaymentTypes()
-      .filter((p) => p.workspace_id === idNum)
+      .filter((p) => p.workspace_id === idNum && !p.is_archive)
       .map((p) => ({
         id: p.id,
         name: p.name,
         icon: p.icon ?? null,
         default_currency_id: p.default_currency_id ?? null,
+        workspace_id: p.workspace_id,
+        is_archive: p.is_archive,
       }));
   },
   async getPaymentType(id): Promise<PaymentType | null> {

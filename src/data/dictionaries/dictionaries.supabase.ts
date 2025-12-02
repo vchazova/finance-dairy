@@ -5,10 +5,8 @@ import type {
   Currency,
   CurrencyInsert,
   CurrencyUpdate,
-  Category,
   CategoryInsert,
   CategoryUpdate,
-  PaymentType,
   PaymentTypeInsert,
   PaymentTypeUpdate,
 } from "@/entities/dictionaries";
@@ -28,7 +26,11 @@ export function createDictionariesSupabaseRepo(client?: SupabaseClient): Diction
   return {
     // Global (unscoped) dictionaries: currencies
     async listCurrencies(): Promise<Currency[]> {
-      const { data, error } = await supabase.from("currencies").select("*").order("code", { ascending: true });
+      const { data, error } = await supabase
+        .from("currencies")
+        .select("*")
+        .eq("is_archive", false)
+        .order("code", { ascending: true });
       if (error) {
         console.warn("[dictionariesRepo] listCurrencies failed", error);
         return [];
@@ -55,7 +57,7 @@ export function createDictionariesSupabaseRepo(client?: SupabaseClient): Diction
       return { ok: true } as const;
     },
     async removeCurrency(id) {
-      const { error } = await supabase.from("currencies").delete().eq("id", id);
+      const { error } = await supabase.from("currencies").update({ is_archive: true }).eq("id", id);
       if (error) return { ok: false, message: error.message } as const;
       return { ok: true } as const;
     },
@@ -66,6 +68,7 @@ export function createDictionariesSupabaseRepo(client?: SupabaseClient): Diction
         .from("categories")
         .select("*")
         .eq("workspace_id", workspaceId)
+        .eq("is_archive", false)
         .order("name", { ascending: true });
       if (error) {
         console.warn("[dictionariesRepo] listCategories failed", error);
@@ -98,7 +101,7 @@ export function createDictionariesSupabaseRepo(client?: SupabaseClient): Diction
       return { ok: true } as const;
     },
     async removeCategory(id) {
-      const { error } = await supabase.from("categories").delete().eq("id", id);
+      const { error } = await supabase.from("categories").update({ is_archive: true }).eq("id", id);
       if (error) return { ok: false, message: error.message } as const;
       return { ok: true } as const;
     },
@@ -109,6 +112,7 @@ export function createDictionariesSupabaseRepo(client?: SupabaseClient): Diction
         .from("payment_types")
         .select("*")
         .eq("workspace_id", workspaceId)
+        .eq("is_archive", false)
         .order("name", { ascending: true });
       if (error) {
         console.warn("[dictionariesRepo] listPaymentTypes failed", error);
@@ -141,7 +145,7 @@ export function createDictionariesSupabaseRepo(client?: SupabaseClient): Diction
       return { ok: true } as const;
     },
     async removePaymentType(id) {
-      const { error } = await supabase.from("payment_types").delete().eq("id", id);
+      const { error } = await supabase.from("payment_types").update({ is_archive: true }).eq("id", id);
       if (error) return { ok: false, message: error.message } as const;
       return { ok: true } as const;
     },

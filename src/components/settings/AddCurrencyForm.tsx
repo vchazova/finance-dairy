@@ -13,7 +13,7 @@ export function AddCurrencyForm({ onSubmit }: { onSubmit: (draft: CurrencyDraft)
 
   async function handleSubmit() {
     if (!draft.code.trim() || !draft.name.trim() || !draft.symbol.trim()) {
-      setError("Код, название и символ обязательны");
+      setError("All fields are required");
       return;
     }
     setLoading(true);
@@ -26,7 +26,7 @@ export function AddCurrencyForm({ onSubmit }: { onSubmit: (draft: CurrencyDraft)
       });
       setDraft({ code: "", name: "", symbol: "" });
     } catch (e: any) {
-      setError(e?.message || "Не удалось создать валюту");
+      setError(e?.message || "Failed to create currency");
     } finally {
       setLoading(false);
     }
@@ -34,25 +34,25 @@ export function AddCurrencyForm({ onSubmit }: { onSubmit: (draft: CurrencyDraft)
 
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-      <h3 className="text-sm font-semibold">Добавить валюту</h3>
+      <h3 className="text-sm font-semibold">Create currency</h3>
       <div className="mt-3 space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
-            label="Код"
+            label="Code"
             placeholder="USD"
             value={draft.code}
             onChange={(e) => setDraft((p) => ({ ...p, code: e.target.value }))}
           />
           <Input
-            label="Символ"
+            label="Symbol"
             placeholder="$"
             value={draft.symbol}
             onChange={(e) => setDraft((p) => ({ ...p, symbol: e.target.value }))}
           />
         </div>
         <Input
-          label="Название"
-          placeholder="Доллар США"
+          label="Name"
+          placeholder="United States Dollar"
           value={draft.name}
           onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
         />
@@ -65,19 +65,14 @@ export function AddCurrencyForm({ onSubmit }: { onSubmit: (draft: CurrencyDraft)
             className="border border-[hsl(var(--border))]"
             onClick={() => setDraft({ code: "", name: "", symbol: "" })}
           >
-            Сбросить
+            Reset
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? "Сохраняем..." : "Добавить"}
+          <Button type="button" variant="primary" size="sm" onClick={handleSubmit} disabled={loading}>
+            {loading ? "Saving..." : "Create"}
           </Button>
         </div>
       </div>
     </div>
   );
 }
+

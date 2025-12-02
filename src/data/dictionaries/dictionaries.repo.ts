@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type {
   Currency,
   CurrencyInsert,
@@ -11,19 +10,15 @@ import type {
   PaymentTypeUpdate,
 } from "@/entities/dictionaries";
 
-export type CategoryLite = {
-  id: number | string;
-  name: string;
-  icon?: string | null;
-  color?: string | null;
-};
+export type CategoryLite = Pick<
+  Category,
+  "id" | "name" | "icon" | "color" | "workspace_id" | "is_archive"
+>;
 
-export type PaymentTypeLite = {
-  id: number | string;
-  name: string;
-  icon?: string | null;
-  default_currency_id?: number | null;
-};
+export type PaymentTypeLite = Pick<
+  PaymentType,
+  "id" | "name" | "icon" | "default_currency_id" | "workspace_id" | "is_archive"
+>;
 
 export interface DictionariesRepo {
   // Currencies

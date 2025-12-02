@@ -85,7 +85,11 @@ export type { FormSectionProps } from "./layout/FormSection";
 export { SplitPane } from "./layout/SplitPane";
 export type { SplitPaneProps } from "./layout/SplitPane";
 
-export { EmojiPicker } from "./picker/EmojiPicker";
+export {
+  EmojiPicker,
+  CATEGORY_EMOJIS,
+  PAYMENT_TYPE_EMOJIS,
+} from "./picker/EmojiPicker";
 export type { EmojiPickerProps, EmojiOption } from "./picker/EmojiPicker";
 export { ColorPicker } from "./picker/ColorPicker";
 export type { ColorPickerProps } from "./picker/ColorPicker";

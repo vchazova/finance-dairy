@@ -48,6 +48,7 @@ export const CURRENCIES = [
     code: "ILS",
     name: "Israeli New Shekel",
     symbol: "₪",
+    is_archive: false,
   },
   {
     id: 2,
@@ -55,6 +56,7 @@ export const CURRENCIES = [
     code: "USD",
     name: "US Dollar",
     symbol: "$",
+    is_archive: false,
   },
   {
     id: 3,
@@ -62,6 +64,7 @@ export const CURRENCIES = [
     code: "EUR",
     name: "Euro",
     symbol: "€",
+    is_archive: false,
   },
 ];
 
@@ -73,6 +76,7 @@ export const PAYMENT_TYPES = [
     icon: "💵",
     default_currency_id: 1,
     workspace_id: 1001,
+    is_archive: false,
   },
   {
     id: 5002,
@@ -81,6 +85,7 @@ export const PAYMENT_TYPES = [
     icon: "💳",
     default_currency_id: 1,
     workspace_id: 1001,
+    is_archive: false,
   },
   {
     id: 5003,
@@ -89,6 +94,7 @@ export const PAYMENT_TYPES = [
     icon: "🏦",
     default_currency_id: 2,
     workspace_id: 1002,
+    is_archive: false,
   },
 ];
 
@@ -100,6 +106,7 @@ export const CATEGORIES = [
     icon: "🛒",
     color: "#34D399",
     workspace_id: 1001,
+    is_archive: false,
   },
   {
     id: 3002,
@@ -108,6 +115,7 @@ export const CATEGORIES = [
     icon: "🏠",
     color: "#F87171",
     workspace_id: 1001,
+    is_archive: false,
   },
   {
     id: 3003,
@@ -116,6 +124,7 @@ export const CATEGORIES = [
     icon: "💼",
     color: "#60A5FA",
     workspace_id: 1001,
+    is_archive: false,
   },
   {
     id: 3004,
@@ -124,6 +133,7 @@ export const CATEGORIES = [
     icon: "🖥️",
     color: "#A78BFA",
     workspace_id: 1002,
+    is_archive: false,
   },
   {
     id: 3005,
@@ -132,6 +142,7 @@ export const CATEGORIES = [
     icon: "🧰",
     color: "#F59E0B",
     workspace_id: 1002,
+    is_archive: false,
   },
   {
     id: 3006,
@@ -140,6 +151,7 @@ export const CATEGORIES = [
     icon: "➕",
     color: "#10B981",
     workspace_id: 1002,
+    is_archive: false,
   },
 ];
 

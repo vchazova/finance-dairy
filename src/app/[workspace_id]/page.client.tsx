@@ -317,7 +317,9 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
         />
       ),
       analytics: <AnalyticsView summary={analyticsSummary} />,
-      settings: <SettingsView workspaceSlug={workspaceSlug} />,
+      settings: (
+        <SettingsView workspaceSlug={workspaceSlug} workspaceId={resolvedWorkspaceId} />
+      ),
     };
 
     mainContent = (
