@@ -2,8 +2,8 @@ import { z } from "zod";
 import { dbDate, dbId, uuid } from "./_shared";
 import { MemberRole } from "./workspaceMembers";
 
-export const InviteStatus = ["pending", "accepted", "cancelled", "expired"] as const;
-export type InviteStatus = (typeof InviteStatus)[number];
+export const InviteStatuses = ["pending", "accepted", "cancelled", "expired"] as const;
+export type InviteStatus = (typeof InviteStatuses)[number];
 
 export const invitedMemberRowSchema = z.object({
   id: dbId,
@@ -13,7 +13,7 @@ export const invitedMemberRowSchema = z.object({
   invitee_email: z.string().email(),
   invitee_user_id: uuid.nullable(),
   role: z.enum(MemberRole),
-  status: z.enum(InviteStatus),
+  status: z.enum(InviteStatuses),
   accepted_at: z.coerce.date().nullable(),
   expires_at: z.coerce.date().nullable(),
   message: z.string().nullable(),
@@ -27,7 +27,7 @@ export const invitedMemberInsertSchema = z.object({
   invitee_email: z.string().email(),
   invitee_user_id: uuid.nullable().optional(),
   role: z.enum(MemberRole),
-  status: z.enum(InviteStatus),
+  status: z.enum(InviteStatuses),
   accepted_at: z.coerce.date().nullable().optional(),
   expires_at: z.coerce.date().nullable().optional(),
   message: z.string().nullable().optional(),

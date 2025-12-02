@@ -1,6 +1,4 @@
 "use client";
-
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
 import {
@@ -22,12 +20,22 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useApiFetch } from "@/lib/api/client";
 import { queryKeys } from "@/lib/queryKeys";
 import type { MemberRole } from "@/entities/workspaceMembers";
+import type { InviteStatus } from "@/entities/invitedMembers";
 
 type WorkspaceMemberListItem = {
   id: string;
   userId: string;
   userEmail: string;
   role: MemberRole;
+};
+
+type WorkspaceInviteListItem = {
+  id: string;
+  inviteeEmail: string;
+  role: MemberRole;
+  status: InviteStatus;
+  createdAt: string;
+  message: string | null;
 };
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -43,6 +51,7 @@ const ROLE_BADGES: Record<MemberRole, "primary" | "neutral" | "warning"> = {
 };
 
 const SKELETON_ROWS = 3;
+const INVITE_SKELETON_ROWS = 3;
 
 type WorkspaceMembersBlockProps = {
   workspaceId: string;
@@ -51,18 +60,21 @@ type WorkspaceMembersBlockProps = {
   onRemoveMember?: (member: WorkspaceMemberListItem) => void;
 };
 
-type PendingInvite = {
-  id: string;
-  email: string;
-  role: MemberRole;
-  invitedAt: string;
-};
-
 function formatUserId(userId: string) {
   if (!userId) return "Unknown user";
   return userId.length > 14
     ? `${userId.slice(0, 10)}...${userId.slice(-4)}`
     : userId;
+}
+
+function formatDateLabel(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
 
 export function WorkspaceMembersBlock({
@@ -90,7 +102,22 @@ export function WorkspaceMembersBlock({
   const isLoading = membersQuery.isPending;
   const isRefetching = membersQuery.isRefetching;
   const errorMessage = (membersQuery.error as Error | null)?.message ?? null;
-  const pendingInvites: PendingInvite[] = [];
+
+  const invitesQuery = useQuery({
+    queryKey: queryKeys.workspaceInvites(workspaceSlug),
+    queryFn: async () => {
+      return apiFetch<WorkspaceInviteListItem[]>(
+        `/api/workspaces/${workspaceId}/invites?status=pending`
+      );
+    },
+    enabled: !!session?.user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const pendingInvites = invitesQuery.data ?? [];
+  const invitesLoading = invitesQuery.isPending;
+  const invitesRefetching = invitesQuery.isRefetching;
+  const invitesError = (invitesQuery.error as Error | null)?.message ?? null;
 
   return (
     <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
@@ -227,11 +254,37 @@ export function WorkspaceMembersBlock({
       <div className="space-y-3 rounded-2xl border border-dashed border-[hsl(var(--border))] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-[hsl(var(--fg))]">Pending invitations</p>
-            <p className="text-xs text-[hsl(var(--fg-muted))]">People who have been invited but have not accepted yet.</p>
+            <p className="text-sm font-medium text-[hsl(var(--fg))]">
+              Pending invitations
+            </p>
+            <p className="text-xs text-[hsl(var(--fg-muted))]">
+              People who have been invited but have not accepted yet.
+            </p>
           </div>
-          <Badge variant="neutral">{pendingInvites.length}</Badge>
+          <div className="flex items-center gap-2">
+            {invitesRefetching && (
+              <Spinner size="sm" aria-label="Refreshing invites" />
+            )}
+            <Badge variant="neutral">{pendingInvites.length}</Badge>
+          </div>
         </div>
+
+        {invitesError && (
+          <Alert
+            variant="danger"
+            title="Failed to load invites"
+            description={invitesError}
+            action={
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => invitesQuery.refetch()}
+              >
+                Retry
+              </Button>
+            }
+          />
+        )}
 
         <Table>
           <TableHeader>
@@ -249,17 +302,55 @@ export function WorkspaceMembersBlock({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pendingInvites.length > 0 ? (
+            {invitesLoading ? (
+              Array.from({ length: INVITE_SKELETON_ROWS }).map((_, index) => (
+                <TableRow key={`invite-sk-${index}`}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-40" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center">
+                      <Skeleton className="h-9 w-9 rounded-full" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : pendingInvites.length > 0 ? (
               pendingInvites.map((invite) => (
                 <TableRow key={invite.id}>
-                  <TableCell>{invite.email}</TableCell>
                   <TableCell>
-                    <Badge variant={ROLE_BADGES[invite.role]}>{ROLE_LABELS[invite.role]}</Badge>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-[hsl(var(--fg))]">
+                        {invite.inviteeEmail}
+                      </div>
+                      <div className="text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">
+                        {invite.status}
+                        {invite.message ? ` · ${invite.message}` : ""}
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-xs text-[hsl(var(--fg-muted))]">{invite.invitedAt}</TableCell>
+                  <TableCell>
+                    <Badge variant={ROLE_BADGES[invite.role]}>
+                      {ROLE_LABELS[invite.role]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-[hsl(var(--fg-muted))]">
+                    {formatDateLabel(invite.createdAt)}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center">
-                      <IconButton size="sm" variant="danger" disabled aria-label="Revoke invite (coming soon)">
+                      <IconButton
+                        size="sm"
+                        variant="danger"
+                        disabled
+                        aria-label="Revoke invite (coming soon)"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </IconButton>
                     </div>

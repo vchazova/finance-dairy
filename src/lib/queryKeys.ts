@@ -7,5 +7,6 @@ export const queryKeys = {
   currencyOptions: ["dictionaries", "currencies", "options"] as const,
   currencies: ["dictionaries", "currencies"] as const,
   workspaceMembers: (workspaceSlug: string) => ["workspace", workspaceSlug, "members"] as const,
+  workspaceInvites: (workspaceSlug: string) => ["workspace", workspaceSlug, "invites"] as const,
   transactions: (workspaceSlug: string) => ["workspace", workspaceSlug, "transactions"] as const,
 };
