@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { workspaceFormSchema } from "@/entities/workspaces";
 import { assertWorkspaceMembership, assertWorkspaceOwner, createRouteSupabase } from "@/lib/supabase/api";
 import { createDataRepos } from "@/data";
+import { slugifyWorkspaceName } from "@/lib/slug";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,12 +38,27 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     await assertWorkspaceMembership(supabase, idNum, user.id);
 
+    const {
+      data: existing,
+      error: existingErr,
+    } = await supabase.from("workspaces").select("id, name, slug").eq("id", idNum).single();
+    if (existingErr || !existing) {
+      return NextResponse.json({ ok: false, message: "Workspace not found" }, { status: 404 });
+    }
+
+    const trimmedName = parsed.data.name.trim();
+    const nameChanged = trimmedName !== existing.name;
+    const nextSlug = nameChanged
+      ? await generateUniqueWorkspaceSlugForUpdate(trimmedName, supabase, idNum)
+      : undefined;
+
     const result = await repo.update(idNum, {
-      name: parsed.data.name,
+      name: trimmedName,
+      slug: nextSlug,
       description: parsed.data.description ?? null,
     });
     if (!result.ok) return NextResponse.json({ ok: false, message: result.message }, { status: 400 });
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return NextResponse.json({ ok: true, slug: nextSlug ?? existing.slug }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json(
       { ok: false, message: err?.message ?? "Failed to update workspace" },
@@ -80,4 +97,30 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
       { status: 500 }
     );
   }
+}
+
+async function generateUniqueWorkspaceSlugForUpdate(
+  name: string,
+  supabase: SupabaseClient,
+  workspaceId: number
+): Promise<string> {
+  const base = slugifyWorkspaceName(name);
+  let candidate = base;
+  let attempts = 1;
+  while (await slugTaken(candidate, supabase, workspaceId)) {
+    candidate = `${base}-${attempts}`;
+    attempts += 1;
+  }
+  return candidate;
+}
+
+async function slugTaken(slug: string, supabase: SupabaseClient, workspaceId: number): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("workspaces")
+    .select("id")
+    .eq("slug", slug)
+    .neq("id", workspaceId)
+    .limit(1);
+  if (error) throw error;
+  return Boolean(data && data.length > 0);
 }

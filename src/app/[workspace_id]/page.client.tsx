@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Pencil, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
+import { WorkspaceLayout } from "@/components/ui/layout/WorkspaceLayout";
+import { Button, Input, TextArea, Select, DatePicker } from "@/components/ui";
 import { useAuth } from "@/providers/AuthProvider";
 import { useApiFetch } from "@/lib/api/client";
 import { normalizeTransactionRow, toSignedAmount } from "@/entities/transactions/normalize";
@@ -17,25 +21,23 @@ import {
 } from "@/entities/dictionaries/normalize";
 import { queryKeys } from "@/lib/queryKeys";
 import type { WorkspaceListItem } from "@/types/workspaces";
-
-type Tx = {
-  id: string;
-  date: string; // ISO yyyy-mm-dd
-  categoryId: string;
-  categoryName?: string;
-  paymentTypeId?: string;
-  currencyId?: string;
-  isDecrease?: boolean;
-  amount: number;
-  comment?: string | null;
-};
-
-type Option = { id: string; label: string };
+import type { WorkspaceTransaction as Tx, WorkspaceViewOption as Option } from "./viewTypes";
+import TransactionsView from "./views/TransactionsView";
+import AnalyticsView, { type AnalyticsSummary } from "./views/AnalyticsView";
+import SettingsView from "./views/SettingsView";
+type WorkspaceViewMode = "transactions" | "analytics" | "settings";
+const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
 export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: string }) {
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [headerError, setHeaderError] = useState<string | null>(null);
 
   const workspaceQuery = useQuery({
     queryKey: queryKeys.workspace(workspaceSlug),
@@ -48,47 +50,57 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
 
   const workspace = workspaceQuery.data ?? null;
   const workspaceIdForQueries = workspace?.id ?? null;
+  const isOwner = workspace?.role === "owner";
+
+  useEffect(() => {
+    if (workspace) {
+      setNameDraft(workspace.name);
+      setDescriptionDraft(workspace.description ?? "");
+    }
+  }, [workspace?.name, workspace?.description]);
 
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categories(workspaceSlug),
     queryFn: async () => {
       if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
-      const catsJson = await apiFetch<any[]>(
-        `/api/dictionaries/categories?workspaceId=${workspaceIdForQueries}`
-      );
-      return (catsJson as any[]).map((c) => {
-        const normalized = normalizeCategoryRow(c as NormalizedCategory);
+      const rows = await apiFetch<any[]>(`/api/dictionaries/categories?workspaceId=${workspaceIdForQueries}`);
+      return rows.map((row) => {
+        const normalized = normalizeCategoryRow(row as NormalizedCategory);
         return { id: normalized.id, label: normalized.name };
       });
     },
     enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
+    staleTime: THIRTY_MINUTES_MS,
   });
 
   const paymentTypesQuery = useQuery({
     queryKey: queryKeys.paymentTypes(workspaceSlug),
     queryFn: async () => {
       if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
-      const list = await apiFetch<any[]>(
-        `/api/dictionaries/payment_types?workspaceId=${workspaceIdForQueries}`
-      );
-      return (list as any[]).map((p) => {
-        const normalized = normalizePaymentTypeRow(p as NormalizedPaymentType);
+      const rows = await apiFetch<any[]>(`/api/dictionaries/payment_types?workspaceId=${workspaceIdForQueries}`);
+      return rows.map((row) => {
+        const normalized = normalizePaymentTypeRow(row as NormalizedPaymentType);
         return { id: normalized.id, label: normalized.name };
       });
     },
     enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
+    staleTime: THIRTY_MINUTES_MS,
   });
 
   const currenciesQuery = useQuery({
     queryKey: queryKeys.currencies,
     queryFn: async () => {
-      const list = await apiFetch<any[]>(`/api/dictionaries/currencies`);
-      return (list as any[]).map((c) => {
-        const normalized = normalizeCurrencyRow(c as NormalizedCurrency);
-        return { id: normalized.id, label: `${normalized.code} (${normalized.symbol ?? ""})`.trim() };
+      const rows = await apiFetch<any[]>(`/api/dictionaries/currencies`);
+      return rows.map((row) => {
+        const normalized = normalizeCurrencyRow(row as NormalizedCurrency);
+        return {
+          id: normalized.id,
+          label: `${normalized.code} (${normalized.symbol ?? ""})`.trim(),
+        };
       });
     },
     enabled: !!session?.user?.id,
+    staleTime: THIRTY_MINUTES_MS,
   });
 
   const categoryLabelMap = useMemo(
@@ -100,37 +112,94 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
     queryKey: queryKeys.transactions(workspaceSlug),
     queryFn: async () => {
       if (!workspaceIdForQueries) throw new Error("Workspace not resolved");
-      const list = await apiFetch<any[]>(`/api/transactions?workspaceId=${workspaceIdForQueries}`);
-      return list.map((t) => {
-        const n = normalizeTransactionRow(t);
+      const rows = await apiFetch<any[]>(`/api/transactions?workspaceId=${workspaceIdForQueries}`);
+      return rows.map((row) => {
+        const normalized = normalizeTransactionRow(row);
         return {
-          id: n.id,
-          date: n.date,
-          categoryId: n.categoryId,
-          categoryName: categoryLabelMap.get(n.categoryId),
-          paymentTypeId: n.paymentTypeId,
-          currencyId: n.currencyId,
-          isDecrease: n.isDecrease,
-          amount: n.amount,
-          comment: n.comment,
+          id: normalized.id,
+          date: normalized.date,
+          categoryId: normalized.categoryId,
+          categoryName: categoryLabelMap.get(normalized.categoryId),
+          paymentTypeId: normalized.paymentTypeId,
+          currencyId: normalized.currencyId,
+          isDecrease: normalized.isDecrease,
+          amount: normalized.amount,
+          comment: normalized.comment,
         } satisfies Tx;
       });
     },
     enabled: !!session?.user?.id && Boolean(workspaceIdForQueries),
   });
 
-  const loading = transactionsQuery.isPending;
-  const error = (transactionsQuery.error as Error | null)?.message ?? null;
-  const tx = transactionsQuery.data ?? [];
+  const transactions = transactionsQuery.data ?? [];
+  const analyticsSummary: AnalyticsSummary = useMemo(() => {
+    const count = transactions.length;
+    const totalExpenses = transactions.filter((tx) => tx.amount < 0).reduce((sum, tx) => sum + tx.amount, 0);
+    const totalIncome = transactions.filter((tx) => tx.amount > 0).reduce((sum, tx) => sum + tx.amount, 0);
+    const balance = totalIncome + totalExpenses;
+    return { count, totalExpenses, totalIncome, balance };
+  }, [transactions]);
+  const loadingTransactions = transactionsQuery.isPending;
+  const transactionsError = (transactionsQuery.error as Error | null)?.message ?? null;
   const workspaceError = workspaceQuery.error as Error | null;
   const workspacePending = workspaceQuery.isPending;
+
+  type UpdateWorkspacePayload = { name: string; description: string | null };
+  const updateWorkspaceMutation = useMutation({
+    mutationFn: async (payload: UpdateWorkspacePayload) => {
+      if (!workspace) throw new Error("Workspace not found");
+      const response = await apiFetch<{ ok: boolean; slug?: string }>(`/api/workspaces/${workspace.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      return { ...payload, slug: response?.slug ?? workspace.slug };
+    },
+    onSuccess: (result) => {
+      queryClient.setQueryData<WorkspaceListItem | null>(queryKeys.workspace(workspaceSlug), (prev) =>
+        prev ? { ...prev, name: result.name, description: result.description ?? null, slug: result.slug } : prev
+      );
+      setIsEditingHeader(false);
+      setHeaderError(null);
+      if (result.slug && result.slug !== workspaceSlug) {
+        router.replace(`/${result.slug}`);
+      }
+    },
+    onError: (err: any) => {
+      setHeaderError(err?.message ?? "Failed to update workspace");
+    },
+  });
+
+  const savingHeader = updateWorkspaceMutation.isPending;
+
+  function handleSaveHeader() {
+    if (!workspace) return;
+    const trimmedName = nameDraft.trim();
+    if (trimmedName.length < 2) {
+      setHeaderError("Name must be at least 2 characters");
+      return;
+    }
+    const trimmedDescription = descriptionDraft.trim();
+    setHeaderError(null);
+    updateWorkspaceMutation.mutate({
+      name: trimmedName,
+      description: trimmedDescription.length ? trimmedDescription : null,
+    });
+  }
+
+  function handleCancelHeader() {
+    if (!workspace) return;
+    setIsEditingHeader(false);
+    setHeaderError(null);
+    setNameDraft(workspace.name);
+    setDescriptionDraft(workspace.description ?? "");
+  }
 
   let mainContent: React.ReactNode;
 
   if (workspacePending) {
     mainContent = (
       <div className="rounded-2xl border border-[hsl(var(--border))] p-6 text-center text-sm text-[hsl(var(--fg-muted))]">
-        Loading workspace…
+        Loading workspace...
       </div>
     );
   } else if (workspaceError) {
@@ -147,91 +216,125 @@ export default function WorkspaceClientPage({ workspaceSlug }: { workspaceSlug: 
     );
   } else {
     const resolvedWorkspaceId = workspace.id;
-    mainContent = (
-      <>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">{workspace.name}</h1>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/${workspaceSlug}/settings`}
-              className="inline-flex h-9 items-center rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]">
-              Manage Settings
-            </Link>
-            <AddTransactionButton
-              workspaceId={resolvedWorkspaceId}
-              workspaceSlug={workspaceSlug}
-              categories={categoriesQuery.data ?? []}
-              paymentTypes={paymentTypesQuery.data ?? []}
-              currencies={currenciesQuery.data ?? []}
-            />
-          </div>
-        </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))]">
-          <table className="w-full text-sm">
-            <thead className="bg-[hsl(var(--card))] text-left">
-              <tr>
-                <th className="px-4 py-2">Date</th>
-                <th className="px-4 py-2">Category</th>
-                <th className="px-4 py-2">Payment</th>
-                <th className="px-4 py-2">Currency</th>
-                <th className="px-4 py-2">Amount</th>
-                <th className="px-4 py-2">Comment</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr className="border-t border-[hsl(var(--border))]">
-                  <td className="px-4 py-3" colSpan={4}>
-                    Loading transactions…
-                  </td>
-                </tr>
-              )}
-              {!loading && error && (
-                <tr className="border-t border-[hsl(var(--border))]">
-                  <td className="px-4 py-3 text-red-600" colSpan={4}>
-                    {error}
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                !error &&
-                tx.map((row) => (
-                  <tr key={row.id} className="border-t border-[hsl(var(--border))]">
-                    <td className="px-4 py-2 whitespace-nowrap">{row.date}</td>
-                    <td className="px-4 py-2">
-                      {row.categoryName || categoryLabelMap.get(row.categoryId) || row.categoryId}
-                    </td>
-                    <td className="px-4 py-2">
-                      {paymentTypesQuery.data?.find((p) => p.id === row.paymentTypeId)?.label ||
-                        row.paymentTypeId ||
-                        "—"}
-                    </td>
-                    <td className="px-4 py-2">
-                      {currenciesQuery.data?.find((c) => c.id === row.currencyId)?.label ||
-                        row.currencyId ||
-                        "—"}
-                    </td>
-                    <td className="px-4 py-2 tabular-nums">
-                      <span className={row.amount < 0 ? "text-red-600" : "text-green-600"}>
-                        {row.amount < 0 ? "-" : "+"}
-                        {Math.abs(row.amount).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-[hsl(var(--fg-muted))]">{row.comment || "—"}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      </>
+    const requestedMode = searchParams?.get("mode");
+    const mode: WorkspaceViewMode =
+      requestedMode === "analytics"
+        ? "analytics"
+        : requestedMode === "settings" && isOwner
+        ? "settings"
+        : "transactions";
+
+    const buildModeHref = (nextMode: WorkspaceViewMode) => {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      if (nextMode === "transactions") {
+        params.delete("mode");
+      } else {
+        params.set("mode", nextMode);
+      }
+      const query = params.toString();
+      return query ? `/${workspaceSlug}?${query}` : `/${workspaceSlug}`;
+    };
+
+    const tabs = (
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { mode: "transactions" as WorkspaceViewMode, label: "Transactions" },
+          { mode: "analytics" as WorkspaceViewMode, label: "Analytics" },
+          ...(isOwner ? ([{ mode: "settings" as WorkspaceViewMode, label: "Settings" }] as const) : []),
+        ].map((tab) => (
+          <Link
+            key={tab.mode}
+            href={buildModeHref(tab.mode)}
+            className={`rounded-xl px-3 py-1.5 text-sm transition ${
+              mode === tab.mode
+                ? "bg-[hsl(var(--color-primary)/0.2)] text-[hsl(var(--color-primary))] font-semibold"
+                : "text-[hsl(var(--fg-muted))] hover:text-[hsl(var(--fg))] hover:bg-[hsl(var(--border))]/40"
+            }`}
+            aria-current={mode === tab.mode ? "page" : undefined}>
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+    );
+
+    const actions = (
+      <AddTransactionButton
+        workspaceId={resolvedWorkspaceId}
+        workspaceSlug={workspaceSlug}
+        categories={categoriesQuery.data ?? []}
+        paymentTypes={paymentTypesQuery.data ?? []}
+        currencies={currenciesQuery.data ?? []}
+      />
+    );
+
+    const fallbackDescription =
+      workspace.description && workspace.description.trim().length > 0
+        ? workspace.description
+        : "Review your workspace transactions and manage spending.";
+
+    const headerNode = isOwner ? (
+      <WorkspaceHeaderEditor
+        isEditing={isEditingHeader}
+        displayName={workspace.name}
+        displayDescription={fallbackDescription}
+        createdAt={workspace.createdAt}
+        nameValue={nameDraft}
+        descriptionValue={descriptionDraft}
+        onNameChange={setNameDraft}
+        onDescriptionChange={setDescriptionDraft}
+        onStartEdit={() => {
+          setIsEditingHeader(true);
+          setNameDraft(workspace.name);
+          setDescriptionDraft(workspace.description ?? "");
+          setHeaderError(null);
+        }}
+        onCancel={handleCancelHeader}
+        onSave={handleSaveHeader}
+        saving={savingHeader}
+        error={headerError}
+      />
+    ) : (
+      <div>
+        <div className="text-xl font-semibold text-[hsl(var(--fg))]">{workspace.name}</div>
+        <p className="text-sm text-[hsl(var(--fg-muted))]">
+          Created on {new Date(workspace.createdAt).toLocaleDateString()}
+        </p>
+      </div>
+    );
+
+    const layoutDescription = isOwner ? undefined : fallbackDescription;
+
+    const contentByMode: Record<WorkspaceViewMode, React.ReactNode> = {
+      transactions: (
+        <TransactionsView
+          transactions={transactions}
+          loading={loadingTransactions}
+          error={transactionsError}
+          categoryLabelMap={categoryLabelMap}
+          paymentTypes={paymentTypesQuery.data ?? []}
+          currencies={currenciesQuery.data ?? []}
+        />
+      ),
+      analytics: <AnalyticsView summary={analyticsSummary} />,
+      settings: <SettingsView workspaceSlug={workspaceSlug} />,
+    };
+
+    mainContent = (
+      <WorkspaceLayout
+        title={headerNode}
+        description={layoutDescription}
+        tabs={tabs}
+        actions={actions}>
+        {contentByMode[mode]}
+      </WorkspaceLayout>
     );
   }
 
   return (
     <div className="min-h-dvh bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
       <Header user={session} />
-      <main className="mx-auto max-w-6xl px-4 py-8 space-y-6">{mainContent}</main>
+      <main className="mx-auto max-w-6xl px-4 py-8">{mainContent}</main>
     </div>
   );
 }
@@ -252,13 +355,9 @@ function AddTransactionButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="h-9 rounded-xl bg-[hsl(var(--color-primary))] px-3 text-sm text-white"
-      >
+      <Button onClick={() => setOpen(true)}>
         ADD transaction
-      </button>
+      </Button>
       {open && (
         <CreateTransactionDialog
           onClose={() => setOpen(false)}
@@ -270,6 +369,74 @@ function AddTransactionButton({
         />
       )}
     </>
+  );
+}
+
+type WorkspaceHeaderEditorProps = {
+  isEditing: boolean;
+  displayName: string;
+  displayDescription: string;
+  createdAt: string;
+  nameValue: string;
+  descriptionValue: string;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onStartEdit: () => void;
+  onCancel: () => void;
+  onSave: () => void;
+  saving: boolean;
+  error: string | null;
+};
+
+function WorkspaceHeaderEditor({
+  isEditing,
+  displayName,
+  displayDescription,
+  createdAt,
+  nameValue,
+  descriptionValue,
+  onNameChange,
+  onDescriptionChange,
+  onStartEdit,
+  onCancel,
+  onSave,
+  saving,
+  error,
+}: WorkspaceHeaderEditorProps) {
+  if (!isEditing) {
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xl font-semibold text-[hsl(var(--fg))]">{displayName}</span>
+        <Button size="sm" variant="ghost" onClick={onStartEdit} className="gap-1">
+          <Pencil className="h-4 w-4" />
+          </Button>
+        </div>
+        <p className="text-sm text-[hsl(var(--fg-muted))]">{displayDescription}</p>
+        <p className="text-xs text-[hsl(var(--fg-muted))]">Created on {new Date(createdAt).toLocaleDateString()}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 text-[hsl(var(--fg))]">
+      <Input value={nameValue} onChange={(event) => onNameChange(event.target.value)} placeholder="Workspace name" />
+      <TextArea
+        value={descriptionValue}
+        onChange={(event) => onDescriptionChange(event.target.value)}
+        placeholder="Description"
+        rows={3}
+      />
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={onSave} disabled={saving}>
+          {saving ? "Saving..." : "Save"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -298,6 +465,25 @@ function CreateTransactionDialog({
   const [amount, setAmount] = useState<string>("");
   const [comment, setComment] = useState<string>("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const categoryOptions = useMemo(
+    () => categories.map((c) => ({ value: c.id, label: c.label })),
+    [categories]
+  );
+  const paymentTypeOptions = useMemo(
+    () => paymentTypes.map((p) => ({ value: p.id, label: p.label })),
+    [paymentTypes]
+  );
+  const currencyOptions = useMemo(
+    () => currencies.map((c) => ({ value: c.id, label: c.label })),
+    [currencies]
+  );
+  const typeOptions = useMemo(
+    () => [
+      { value: "expense", label: "Expense" },
+      { value: "income", label: "Income" },
+    ],
+    []
+  );
 
   useEffect(() => {
     if (!categoryId && categories.length) setCategoryId(categories[0].id);
@@ -369,9 +555,8 @@ function CreateTransactionDialog({
           <button
             onClick={onClose}
             className="rounded-lg p-1 text-[hsl(var(--fg-muted))] hover:bg-[hsl(var(--card))]"
-            aria-label="Close"
-          >
-            ×
+            aria-label="Close">
+            <X className="h-4 w-4" />
           </button>
         </div>
         <div className="space-y-3">
@@ -380,111 +565,47 @@ function CreateTransactionDialog({
               {submitError}
             </div>
           )}
-          <div>
-            <label className="mb-1 block text-sm">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+          <DatePicker label="Date" value={date} onChange={(val) => setDate(val)} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select label="Category" value={categoryId} onChange={setCategoryId} options={categoryOptions} />
+            <Select
+              label="Payment Type"
+              value={paymentTypeId}
+              onChange={setPaymentTypeId}
+              options={paymentTypeOptions}
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm">Category</label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm">Payment Type</label>
-              <select
-                value={paymentTypeId}
-                onChange={(e) => setPaymentTypeId(e.target.value)}
-                className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-              >
-                {paymentTypes.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm">Currency</label>
-              <select
-                value={currencyId}
-                onChange={(e) => setCurrencyId(e.target.value)}
-                className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-              >
-                {currencies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm">Type</label>
-              <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] px-3 py-2">
-                <label className="inline-flex items-center gap-1 text-sm">
-                  <input type="radio" checked={isDecrease} onChange={() => setIsDecrease(true)} />
-                  Expense
-                </label>
-                <label className="inline-flex items-center gap-1 text-sm">
-                  <input type="radio" checked={!isDecrease} onChange={() => setIsDecrease(false)} />
-                  Income
-                </label>
-              </div>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm">Amount</label>
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="e.g. -120.50 for expense, 500 for income"
-              className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
+            <Select label="Currency" value={currencyId} onChange={setCurrencyId} options={currencyOptions} />
+            <Select
+              label="Type"
+              value={isDecrease ? "expense" : "income"}
+              onChange={(val) => setIsDecrease(val === "expense")}
+              options={typeOptions}
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm">Comment</label>
-            <input
-              type="text"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Optional"
-              className="block w-full rounded-xl border border-[hsl(var(--border))] bg-transparent px-3 py-2"
-            />
-          </div>
+          <Input
+            label="Amount"
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="e.g. -120.50 for expense, 500 for income"
+          />
+          <TextArea
+            label="Comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Optional"
+            rows={3}
+          />
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 rounded-xl border border-[hsl(var(--border))] px-3 text-sm hover:bg-[hsl(var(--card))]"
-            >
+            <Button variant="ghost" onClick={onClose} disabled={submitting}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={submitting}
-              className="h-9 rounded-xl bg-[hsl(var(--color-primary))] px-3 text-sm text-white disabled:opacity-60"
-            >
+            </Button>
+            <Button onClick={submit} disabled={submitting}>
               {submitting ? "Saving..." : "Save"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

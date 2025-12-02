@@ -54,6 +54,7 @@ export default function WorkspaceSettingsClient({
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
   const workspaceSlug = workspaceId;
+  const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categories(workspaceSlug),
@@ -65,6 +66,7 @@ export default function WorkspaceSettingsClient({
     },
     initialData: initialCategories,
     enabled: !!session?.access_token,
+    staleTime: THIRTY_MINUTES_MS,
   });
 
   const paymentTypesQuery = useQuery({
@@ -77,6 +79,7 @@ export default function WorkspaceSettingsClient({
     },
     initialData: initialPaymentTypes,
     enabled: !!session?.access_token,
+    staleTime: THIRTY_MINUTES_MS,
   });
 
   const currenciesQuery = useQuery({
@@ -87,6 +90,7 @@ export default function WorkspaceSettingsClient({
     },
     initialData: initialCurrencies,
     enabled: !!session?.access_token,
+    staleTime: THIRTY_MINUTES_MS,
   });
 
   const categoryStatus: SectionStatus = {

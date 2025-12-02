@@ -18,18 +18,32 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   children,
   className,
 }) => {
+  const titleIsPrimitive = typeof title === "string" || typeof title === "number";
+  const descriptionValue =
+    typeof description === "string" ? (description.trim().length > 0 ? description : null) : description ?? null;
+  const descriptionIsPrimitive = typeof descriptionValue === "string" || typeof descriptionValue === "number";
+
   return (
     <div className={cn("space-y-6", className)}>
       <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-xl font-semibold text-[hsl(var(--fg))]">
+            <div
+              className={cn(
+                titleIsPrimitive ? "text-xl font-semibold text-[hsl(var(--fg))]" : undefined
+              )}
+            >
               {title}
             </div>
-            {description && (
-              <p className="text-sm text-[hsl(var(--fg-muted))]">
-                {description}
-              </p>
+            {descriptionValue !== null && (
+              <div
+                className={cn(
+                  "mt-1",
+                  descriptionIsPrimitive ? "text-sm text-[hsl(var(--fg-muted))]" : undefined
+                )}
+              >
+                {descriptionValue}
+              </div>
             )}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
