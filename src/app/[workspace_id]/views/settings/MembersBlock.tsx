@@ -1,5 +1,7 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useCallback, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import {
   Alert,
@@ -7,6 +9,9 @@ import {
   Badge,
   Button,
   IconButton,
+  Input,
+  Modal,
+  Select,
   Skeleton,
   Spinner,
   Table,
@@ -15,13 +20,18 @@ import {
   TableEmptyState,
   TableHeader,
   TableRow,
+  TextArea,
+  ToastContainer,
 } from "@/components/ui";
 import { useAuth } from "@/providers/AuthProvider";
 import { useApiFetch } from "@/lib/api/client";
 import { queryKeys } from "@/lib/queryKeys";
-import type { MemberRole } from "@/entities/workspaceMembers";
 import type { InviteStatus } from "@/entities/invitedMembers";
-
+import {
+  MemberRole as MemberRoleEnum,
+  type MemberRole,
+} from "@/entities/workspaceMembers";
+import type { ToastProps } from "@/components/ui/toast/Toast";
 type WorkspaceMemberListItem = {
   id: string;
   userId: string;
@@ -52,6 +62,7 @@ const ROLE_BADGES: Record<MemberRole, "primary" | "neutral" | "warning"> = {
 
 const SKELETON_ROWS = 3;
 const INVITE_SKELETON_ROWS = 3;
+const DEFAULT_INVITE_ROLE: MemberRole = "member";
 
 type WorkspaceMembersBlockProps = {
   workspaceId: string;
@@ -85,6 +96,7 @@ export function WorkspaceMembersBlock({
 }: WorkspaceMembersBlockProps) {
   const { session } = useAuth();
   const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
 
   const membersQuery = useQuery({
     queryKey: queryKeys.workspaceMembers(workspaceSlug),
@@ -119,23 +131,95 @@ export function WorkspaceMembersBlock({
   const invitesRefetching = invitesQuery.isRefetching;
   const invitesError = (invitesQuery.error as Error | null)?.message ?? null;
 
+  const inviteRoleOptions = useMemo(
+    () =>
+      MemberRoleEnum.map((role) => ({
+        value: role,
+        label: ROLE_LABELS[role],
+      })),
+    []
+  );
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>(DEFAULT_INVITE_ROLE);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteFormError, setInviteFormError] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastProps[]>([]);
+
+  const pushToast = useCallback((toast: ToastProps) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    const nextToast = { ...toast, id };
+    setToasts((prev) => [...prev, nextToast]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3200);
+  }, []);
+  const resetInviteFields = () => {
+    setInviteEmail("");
+    setInviteMessage("");
+    setInviteRole(DEFAULT_INVITE_ROLE);
+  };
+
+  const handleInviteModalClose = () => {
+    setInviteModalOpen(false);
+    setInviteFormError(null);
+    resetInviteFields();
+  };
+
+  const inviteMutation = useMutation({
+    mutationFn: async () => {
+      const trimmedEmail = inviteEmail.trim();
+      const payload = {
+        email: trimmedEmail,
+        role: inviteRole,
+        message: inviteMessage.trim() ? inviteMessage.trim() : undefined,
+      };
+      await apiFetch(`/api/workspaces/${workspaceId}/invites`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return trimmedEmail;
+    },
+    onSuccess: (email) => {
+      handleInviteModalClose();
+      pushToast({
+        title: "Invitation sent",
+        description: `Invite email sent to ${email}`,
+        variant: "success",
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workspaceInvites(workspaceSlug),
+      });
+    },
+    onError: (error: Error) => {
+      setInviteFormError(error.message ?? "Failed to send invite");
+    },
+  });
+
+  const inviteButtonDisabled = !inviteEmail.trim() || inviteMutation.isPending;
+
+  const handleInviteSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!inviteEmail.trim()) return;
+    inviteMutation.mutate();
+  };
+
   return (
-    <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1 text-sm text-[hsl(var(--fg-muted))]">
-          <p>Current members with access to this workspace.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isRefetching && (
-            <Spinner size="sm" aria-label="Refreshing members" />
-          )}
-          <Button
-            size="sm"
-            disabled
-            className="bg-[hsl(var(--border))]/40 text-[hsl(var(--fg-muted))]"
-          >
-            Invite member
-          </Button>
+    <>
+      <ToastContainer toasts={toasts} />
+      <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1 text-sm text-[hsl(var(--fg-muted))]">
+            <p>Current members with access to this workspace.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isRefetching && (
+              <Spinner size="sm" aria-label="Refreshing members" />
+            )}
+            <Button size="sm" onClick={() => setInviteModalOpen(true)}>
+              Invite member
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -370,6 +454,77 @@ export function WorkspaceMembersBlock({
           </TableBody>
         </Table>
       </div>
-    </div>
+
+      <Modal
+        open={inviteModalOpen}
+        onClose={handleInviteModalClose}
+        title="Invite member"
+        footer={
+          <div className="flex flex-1 flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col text-xs">
+              {inviteFormError && (
+                <span className="text-[hsl(var(--color-danger))]">
+                  {inviteFormError}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={handleInviteModalClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="workspace-invite-form"
+                disabled={inviteButtonDisabled}
+              >
+                {inviteMutation.isPending && (
+                  <Spinner size="sm" className="mr-2" />
+                )}
+                Send invite
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <form
+          id="workspace-invite-form"
+          onSubmit={handleInviteSubmit}
+          className="space-y-4"
+        >
+          <Input
+            label="Invitee email"
+            type="email"
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            placeholder="teammate@example.com"
+            autoComplete="email"
+            required
+          />
+          <Select
+            label="Role"
+            value={inviteRole}
+            onChange={(val) =>
+              setInviteRole(isMemberRole(val) ? val : DEFAULT_INVITE_ROLE)
+            }
+            options={inviteRoleOptions}
+          />
+          <TextArea
+            label="Message (optional)"
+            placeholder="Add a short note for the invitee"
+            value={inviteMessage}
+            onChange={(event) => setInviteMessage(event.target.value)}
+            rows={3}
+            maxLength={500}
+          />
+        </form>
+      </Modal>
+    </>
   );
+}
+function isMemberRole(value: string): value is MemberRole {
+  return (MemberRoleEnum as readonly string[]).includes(value as MemberRole);
 }
