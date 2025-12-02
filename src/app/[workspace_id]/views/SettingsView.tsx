@@ -25,7 +25,7 @@ export default function SettingsView({
         description="Keep an eye on access levels. Dedicated member management will arrive soon."
         defaultOpen={false}
       >
-        <WorkspaceMembersBlock workspaceSlug={workspaceSlug} />
+        <WorkspaceMembersBlock workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
       </SettingsCard>
     </div>
   );
@@ -59,4 +59,3 @@ function SettingsCard({
     </section>
   );
 }
-
