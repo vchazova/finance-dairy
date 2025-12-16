@@ -266,10 +266,10 @@ export function WorkspaceMembersBlock({
         <TableHeader>
           <TableRow>
             <TableCell header>Email</TableCell>
-            <TableCell header className="w-40">
+            <TableCell header className="hidden w-40 sm:table-cell">
               Role
             </TableCell>
-            <TableCell header className="w-28 text-center">
+            <TableCell header className="hidden w-28 text-center sm:table-cell">
               Actions
             </TableCell>
           </TableRow>
@@ -287,10 +287,10 @@ export function WorkspaceMembersBlock({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <Skeleton className="h-5 w-16 rounded-full" />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <div className="flex justify-center gap-2">
                     <Skeleton className="h-9 w-9 rounded-full" />
                     <Skeleton className="h-9 w-9 rounded-full" />
@@ -302,7 +302,45 @@ export function WorkspaceMembersBlock({
             members.map((member) => (
               <TableRow key={member.id}>
                 <TableCell>
-                  <div className="flex items-center gap-3">
+                  <div className="sm:hidden">
+                    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={member.userEmail ?? member.userId} size="sm" />
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium text-[hsl(var(--fg))]">
+                            {member.userEmail ?? formatUserId(member.userId)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Badge variant={ROLE_BADGES[member.role]}>
+                          {ROLE_LABELS[member.role]}
+                        </Badge>
+                        <div className="flex flex-1 flex-wrap justify-end gap-1.5">
+                          <IconButton
+                            size="sm"
+                            aria-label="Edit member"
+                            onClick={() => onEditMember?.(member)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </IconButton>
+                          <IconButton
+                            size="sm"
+                            variant="danger"
+                            aria-label="Remove member"
+                            disabled={member.role === "owner"}
+                            onClick={() => {
+                              if (member.role === "owner") return;
+                              onRemoveMember?.(member);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </IconButton>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="hidden items-center gap-3 sm:flex">
                     <Avatar
                       name={member.userEmail ?? member.userId}
                       size="sm"
@@ -314,12 +352,12 @@ export function WorkspaceMembersBlock({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <Badge variant={ROLE_BADGES[member.role]}>
                     {ROLE_LABELS[member.role]}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <div className="flex items-center justify-center gap-2">
                     <IconButton
                       size="sm"
@@ -396,13 +434,13 @@ export function WorkspaceMembersBlock({
           <TableHeader>
             <TableRow>
               <TableCell header>Email</TableCell>
-              <TableCell header className="w-40">
+              <TableCell header className="hidden w-40 sm:table-cell">
                 Role
               </TableCell>
-              <TableCell header className="w-40">
+              <TableCell header className="hidden w-40 sm:table-cell">
                 Invited
               </TableCell>
-              <TableCell header className="w-28 text-center">
+              <TableCell header className="hidden w-28 text-center sm:table-cell">
                 Actions
               </TableCell>
             </TableRow>
@@ -414,13 +452,13 @@ export function WorkspaceMembersBlock({
                   <TableCell>
                     <Skeleton className="h-4 w-40" />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Skeleton className="h-5 w-16 rounded-full" />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Skeleton className="h-4 w-24" />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <div className="flex justify-center">
                       <Skeleton className="h-9 w-9 rounded-full" />
                     </div>
@@ -431,25 +469,63 @@ export function WorkspaceMembersBlock({
               pendingInvites.map((invite) => (
                 <TableRow key={invite.id}>
                   <TableCell>
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium text-[hsl(var(--fg))]">
-                        {invite.inviteeEmail}
-                      </div>
-                      <div className="text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">
-                        {invite.status}
-                        {invite.message ? ` · ${invite.message}` : ""}
+                    <div className="sm:hidden">
+                      <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-sm">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium text-[hsl(var(--fg))]">
+                            {invite.inviteeEmail}
+                          </div>
+                          <div className="text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">
+                            {invite.status}
+                            {invite.message ? ` · ${invite.message}` : ""}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-col gap-2 text-xs">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={ROLE_BADGES[invite.role]}>
+                              {ROLE_LABELS[invite.role]}
+                            </Badge>
+                            <span className="text-[hsl(var(--fg-muted))]">
+                              {formatDateLabel(invite.createdAt)}
+                            </span>
+                          </div>
+                          <div>
+                            {canManageInvites ? (
+                              <IconButton
+                                size="sm"
+                                variant="danger"
+                                disabled={revokeInviteMutation.isPending}
+                                aria-label="Revoke invite"
+                                onClick={() => revokeInviteMutation.mutate(invite.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </IconButton>
+                            ) : (
+                              <span className="text-[hsl(var(--fg-muted))]">Owner only</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                    <div className="hidden sm:flex sm:flex-col">
+                      <span className="text-sm font-medium text-[hsl(var(--fg))]">
+                        {invite.inviteeEmail}
+                      </span>
+                      <span className="text-xs uppercase tracking-wide text-[hsl(var(--fg-muted))]">
+                        {invite.status}
+                        {invite.message ? ` · ${invite.message}` : ""}
+                      </span>
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge variant={ROLE_BADGES[invite.role]}>
                       {ROLE_LABELS[invite.role]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-[hsl(var(--fg-muted))]">
+                  <TableCell className="hidden text-xs text-[hsl(var(--fg-muted))] sm:table-cell">
                     {formatDateLabel(invite.createdAt)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center justify-center">
                       {canManageInvites ? (
                         <IconButton

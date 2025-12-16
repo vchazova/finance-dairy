@@ -8,15 +8,17 @@ export const Table: React.FC<TableProps> = ({ className, children, ...props }) =
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-sm"
+        "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-sm"
       )}
     >
-      <table
-        className={cn("w-full border-collapse text-sm text-[hsl(var(--fg))]", className)}
-        {...props}
-      >
-        {children}
-      </table>
+      <div className="overflow-x-auto">
+        <table
+          className={cn("w-full border-collapse text-sm text-[hsl(var(--fg))]", className)}
+          {...props}
+        >
+          {children}
+        </table>
+      </div>
     </div>
   );
 };

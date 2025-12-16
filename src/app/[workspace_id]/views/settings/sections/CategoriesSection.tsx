@@ -172,9 +172,11 @@ export function CategoriesSection({
             columns={["Name", "Icon", "Color"]}
             loading={status.loading}
             emptyText="No categories yet."
+            mobileVisibleColumns={[0]}
             rows={data.map((row) => (
               <DictionaryRow
                 key={row.id}
+                mobileVisibleColumns={[0]}
                 cells={[
                   <span key="name" className={`font-medium ${CELL_TEXT}`}>
                     {row.name}

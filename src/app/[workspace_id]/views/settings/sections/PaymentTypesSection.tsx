@@ -251,6 +251,7 @@ export function PaymentTypesSection({
             columns={["Name", "Icon", "Default currency"]}
             loading={status.loading}
             emptyText="No payment methods yet."
+            mobileVisibleColumns={[0, 2]}
             rows={data.map((row) => {
               const currentCurrency = row.defaultCurrencyId
                 ? currencies.find((c) => c.id === row.defaultCurrencyId)?.code ||
@@ -260,6 +261,7 @@ export function PaymentTypesSection({
               return (
                 <DictionaryRow
                   key={row.id}
+                  mobileVisibleColumns={[0, 2]}
                   cells={[
                     <span className={`font-medium ${CELL_TEXT}`} key="name">
                       {row.name}

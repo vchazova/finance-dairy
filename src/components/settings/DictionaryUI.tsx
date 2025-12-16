@@ -58,11 +58,13 @@ export function DictionaryTable({
   rows,
   loading,
   emptyText,
+  mobileVisibleColumns,
 }: {
   columns: string[];
   rows: ReactNode[];
   loading: boolean;
   emptyText: string;
+  mobileVisibleColumns?: number[];
 }) {
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg))] shadow-sm">
@@ -70,14 +72,22 @@ export function DictionaryTable({
         <table className="w-full border-collapse text-xs sm:text-sm">
           <thead className="bg-[hsl(var(--card))]">
             <tr>
-              {columns.map((col) => (
-                <th
-                  key={col}
-                  className="px-3 py-2 text-left font-semibold text-[hsl(var(--fg))]"
-                >
-                  {col}
-                </th>
-              ))}
+              {columns.map((col, index) => {
+                const showOnMobile =
+                  mobileVisibleColumns === undefined ||
+                  mobileVisibleColumns.includes(index);
+                return (
+                  <th
+                    key={col}
+                    className={cn(
+                      "px-3 py-2 text-left font-semibold text-[hsl(var(--fg))]",
+                      !showOnMobile && "hidden sm:table-cell"
+                    )}
+                  >
+                    {col}
+                  </th>
+                );
+              })}
               <th className="w-[72px] px-3 py-2 text-right font-semibold text-[hsl(var(--fg))] sm:w-[120px]">
                 <span className="hidden sm:inline">Actions</span>
                 <span className="text-base leading-none sm:hidden" aria-hidden>
@@ -115,21 +125,31 @@ export function DictionaryTable({
 export function DictionaryRow({
   cells,
   actions,
+  mobileVisibleColumns,
 }: {
   cells: ReactNode | ReactNode[];
   actions: ReactNode;
+  mobileVisibleColumns?: number[];
 }) {
   const list = Array.isArray(cells) ? cells : [cells];
   return (
     <tr className="border-t border-[hsl(var(--border))]">
-      {list.map((cell, idx) => (
-        <td
-          key={idx}
-          className="relative overflow-visible px-3 py-2 align-middle text-[hsl(var(--fg))]"
-        >
-          <div className="relative z-10">{cell}</div>
-        </td>
-      ))}
+      {list.map((cell, idx) => {
+        const showOnMobile =
+          mobileVisibleColumns === undefined ||
+          mobileVisibleColumns.includes(idx);
+        return (
+          <td
+            key={idx}
+            className={cn(
+              "relative overflow-visible px-3 py-2 align-middle text-[hsl(var(--fg))]",
+              !showOnMobile && "hidden sm:table-cell"
+            )}
+          >
+            <div className="relative z-10">{cell}</div>
+          </td>
+        );
+      })}
       <td className="w-[72px] px-3 py-2 text-right sm:w-[120px]">
         <div className="flex justify-end gap-1.5 text-xs sm:gap-2">{actions}</div>
       </td>

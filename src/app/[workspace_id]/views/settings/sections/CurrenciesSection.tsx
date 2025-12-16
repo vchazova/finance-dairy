@@ -160,9 +160,11 @@ export function CurrenciesSection({
             columns={["Code", "Name", "Symbol"]}
             loading={status.loading}
             emptyText="No currencies yet."
+            mobileVisibleColumns={[0, 2]}
             rows={data.map((row) => (
               <DictionaryRow
                 key={row.id}
+                mobileVisibleColumns={[0, 2]}
                 cells={[
                   <span key="code" className={`font-medium ${CELL_TEXT}`}>
                     {row.code}
